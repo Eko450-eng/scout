@@ -1,0 +1,59 @@
+import { Button, VerticalBox, ScrollView, ListView } from "std-widgets.slint";
+
+export component FlatFileTree {
+    in property <[string]> files;
+}
+
+export component AppWindow inherits Window {
+    in property <[string]> files;
+    in property <[string]> child_files;
+    in property <string> content_of_file;
+    callback set-active-folder(string);
+
+    GridLayout {
+        ScrollView {
+            width: 200px;
+            height: 200px;
+            viewport-width: 300px;
+            viewport-height: 300px;
+            ListView {
+                for data in files: Rectangle {
+                    GridLayout {
+                        Row {
+                            Button {
+                                text: data;
+                                clicked => {
+                                    set-active-folder(data)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ScrollView {
+            width: 200px;
+            height: 200px;
+            viewport-width: 300px;
+            viewport-height: 300px;
+            ListView {
+                for data in child_files: Rectangle {
+                    GridLayout {
+                        Row {
+                            Button {
+                                text: data;
+                                clicked => {
+                                    set-active-folder(data)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text {
+            text: content_of_file;
+        }
+    }
+}

@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-channel = "2.3.1"
-gio = "0.19.5"
-gtk = { version = "0.8.2", package = "gtk4", features = ["v4_12"] }
+# async-channel = "2.3.1"
+# gio = "0.19.5"
+# gtk = { version = "0.8.2", package = "gtk4", features = ["v4_12"] }
+slint = { version = "1.6"}
+
+[build-dependencies]
+slint-build = { version = "1.6"}
