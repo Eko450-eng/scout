@@ -4,26 +4,62 @@ export component FlatFileTree {
     in property <[string]> files;
 }
 
+export enum SolItemType {
+    Folder,
+    File,
+    Script,
+    Eml,
+}
+
+export struct SolItem {
+    name: string,
+    item_type: SolItemType,
+    active: bool,
+    selected: bool,
+    index: int,
+    path: string,
+}
+
 export component AppWindow inherits Window {
-    in property <[string]> files;
-    in property <[string]> child_files;
+    in property <[SolItem]> files;
+    in property <[SolItem]> child_files;
     in property <string> content_of_file;
     callback set-active-folder(string);
+    callback key_presed(string);
+
+    width: 1000px;
+    height: 500px;
+
+    background: #383C4A;
+    FocusScope {
+        key-pressed(event) => {
+            key_presed(event.text);
+            accept
+        }
+    }
 
     GridLayout {
         ScrollView {
-            width: 200px;
-            height: 200px;
-            viewport-width: 300px;
-            viewport-height: 300px;
+            width: parent.width / 3;
+            height: parent.height;
+            viewport-height: parent.height;
+
             ListView {
                 for data in files: Rectangle {
                     GridLayout {
                         Row {
-                            Button {
-                                text: data;
-                                clicked => {
-                                    set-active-folder(data)
+                            Rectangle {
+                                background: #3B4052;
+
+                                TouchArea {
+
+                                    Text {
+                                        text: data.name;
+                                    }
+
+                                    clicked => {
+                                        set-active-folder(data.name)
+                                    }
                                 }
                             }
                         }
@@ -33,18 +69,27 @@ export component AppWindow inherits Window {
         }
 
         ScrollView {
-            width: 200px;
-            height: 200px;
-            viewport-width: 300px;
-            viewport-height: 300px;
+            width: parent.width / 3;
+            height: parent.height;
+            viewport-width: parent.width / 3;
+            viewport-height: parent.height;
+
             ListView {
                 for data in child_files: Rectangle {
                     GridLayout {
                         Row {
-                            Button {
-                                text: data;
-                                clicked => {
-                                    set-active-folder(data)
+                            Rectangle {
+                                background: #3B4052;
+
+                                TouchArea {
+
+                                    Text {
+                                        text: data.name;
+                                    }
+
+                                    clicked => {
+                                        set-active-folder(data.name)
+                                    }
                                 }
                             }
                         }
@@ -52,6 +97,7 @@ export component AppWindow inherits Window {
                 }
             }
         }
+
         Text {
             text: content_of_file;
         }
