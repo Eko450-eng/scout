@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::{env, fs, usize};
+use std::{clone, env, fs, usize};
 
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{Model, SharedString, VecModel};
 
 const _APP_ID: &str = "de.wipdesign.scout";
 const _APP_NAME: &str = "Scout";
@@ -38,15 +38,20 @@ fn main() -> Result<(), slint::PlatformError> {
     let down = SharedString::from("j");
     let into = SharedString::from("l");
     let outof = SharedString::from("h");
-    let mut data_vec: Vec<SolItem> = Vec::new();
 
-    window.on_key_presed(move |key, data| {
+    window.on_key_presed(move |key| {
+        let data = ui.get_child_files();
+        let mut data_vec: Vec<SolItem> = Vec::new();
+
         let current_position = ui.get_position();
         let mut new_y = current_position.y;
+
         for i in data.iter() {
             data_vec.push(i);
         }
 
+
+        // TODO: Pagination instead of or additional to scrolling
         if key == up {
             new_y = current_position.y - 1;
         } else if key == down {
@@ -61,12 +66,22 @@ fn main() -> Result<(), slint::PlatformError> {
             new_path.pop();
 
             if new_path.is_dir() {
-                history.push(new_path);
-                let values = set_view(history.clone(), depth, depth - 1);
+                history.pop();
+                println!("{:?}", history);
+
+                let parent_files_list =
+                    slint::ModelRc::new(VecModel::from(get_root_dir_files(history[history.len() - 2].clone())));
+                let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(
+                    history.last().expect("No last element").clone(),
+                )));
+
+
+                
+                ui.set_files(parent_files_list);
+                ui.set_child_files(files_list);
+                new_y = 0;
 
                 depth -= 1;
-                ui.set_files(values.0);
-                ui.set_child_files(values.1);
             } else {
                 return;
             }
@@ -75,41 +90,49 @@ fn main() -> Result<(), slint::PlatformError> {
         // │ Move Into Folder │
         // ╰──────────────────╯
         } else if key == into {
-            let mut new_path = history[depth].clone();
+            let mut new_path = history.last().expect("No last Element").clone();
 
             let path_append: String = data_vec[new_y as usize].name.clone().into();
-            new_path.push(path_append);
+            new_path.push(path_append.clone());
 
             if new_path.is_dir() {
                 history.push(new_path);
-                let values = set_view(history.clone(), depth, depth + 1);
+
+                let parent_files_list =
+                    slint::ModelRc::new(VecModel::from(get_root_dir_files(history[history.len() - 2].clone())));
+                let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(
+                    history.last().expect("No last element").clone(),
+                )));
+
+                ui.set_files(parent_files_list);
+                ui.set_child_files(files_list);
+                new_y = 0;
 
                 depth += 1;
-                ui.set_files(values.0);
-                ui.set_child_files(values.1);
-            } else {
-                let ext = new_path.extension().unwrap();
-                let ext_str = ext.to_str();
-                match ext_str {
-                    Some("lua") => {
-                        Command::new("wezterm")
-                            .arg("start")
-                            .arg("nvim")
-                            .arg(&new_path)
-                            .status()
-                            .expect("Failed to open");
-                    }
-                    _ => {
-                        let c = fs::read_to_string(new_path.clone()).expect("Failed to Read file");
-
-                        let content = SharedString::from(c);
-                        // TODO: Properly check for multiple file types
-
-                        ui.set_content_of_file(content)
-                    }
-                }
-                return;
             }
+            // } else {
+            //     let ext = new_path.extension().unwrap();
+            //     let ext_str = ext.to_str();
+            //     match ext_str {
+            //         Some("lua") => {
+            //             Command::new("wezterm")
+            //                 .arg("start")
+            //                 .arg("nvim")
+            //                 .arg(&new_path)
+            //                 .status()
+            //                 .expect("Failed to open");
+            //         }
+            //         _ => {
+            //             let c = fs::read_to_string(new_path.clone()).expect("Failed to Read file");
+            //
+            //             let content = SharedString::from(c);
+            //             // TODO: Properly check for multiple file types
+            //
+            //             ui.set_content_of_file(content)
+            //         }
+            //     }
+            //     return;
+            // }
         }
 
         let new_pos: slint_generatedAppWindow::pos = pos {
@@ -124,19 +147,11 @@ fn main() -> Result<(), slint::PlatformError> {
     window.run()
 }
 
-fn set_view(history: Vec<PathBuf>, depth: usize, c: usize) -> (ModelRc<SolItem>, ModelRc<SolItem>) {
-    let parent_files_list =
-        slint::ModelRc::new(VecModel::from(get_root_dir_files(history[depth].clone())));
-    let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(history[c].clone())));
-
-    return (parent_files_list, files_list);
-}
-
 fn get_current_folder() -> PathBuf {
     if cfg!(target_os = "windows") {
         Path::new("C:\\").to_path_buf()
     } else {
-        Path::new("/home/eko/.config/nvim").to_path_buf()
+        Path::new("/").to_path_buf()
     }
 }
 

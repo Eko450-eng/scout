@@ -22,35 +22,40 @@ export struct SolItem {
 
 export struct pos {
     x: int,
-    y: int}
+    y: int,
+}
 
 export component AppWindow inherits Window {
-    in property <[SolItem]> files;
-    in property <[SolItem]> child_files;
-    in property <string> content_of_file;
+    in-out property <[SolItem]> files;
+    in-out property <[SolItem]> child_files;
+    in-out property <string> content_of_file;
     in-out property <pos> position;
 
-    callback key_presed(string, [SolItem]);
+    callback key_presed(string);
 
     width: 1000px;
     height: 500px;
 
     background: #383C4A;
 
-    GridLayout {
-        ScrollView {
-            width: parent.width / 3;
-            height: parent.height;
-            viewport-height: parent.height;
+    FocusScope {
+        key-pressed(event) => {
+            key_presed(event.text);
+            accept
+        }
+        GridLayout {
+            ScrollView {
+                width: parent.width / 3;
+                height: parent.height;
+                viewport-height: parent.height;
 
-            ListView {
-                for data in files: Rectangle {
-                    GridLayout {
-                        Row {
-                            Rectangle {
-                                background: #3B4052;
+                ListView {
+                    for data in files: Rectangle {
+                        GridLayout {
+                            Row {
+                                Rectangle {
+                                    background: #3B4052;
 
-                                TouchArea {
                                     Text {
                                         text: data.name;
                                     }
@@ -60,31 +65,26 @@ export component AppWindow inherits Window {
                     }
                 }
             }
-        }
 
-        ScrollView {
-            width: parent.width / 3;
-            height: parent.height;
-            viewport-width: parent.width / 3;
-            viewport-height: parent.height;
+            ScrollView {
+                width: parent.width / 3;
+                height: parent.height;
+                viewport-width: parent.width / 3;
+                viewport-height: parent.height;
 
-            ListView {
-                for data in child_files: Rectangle {
-                    FocusScope {
-                        key-pressed(event) => {
-                            key_presed(event.text, child_files);
-                            accept
-                        }
+                Text{
+                    text: position.x;
+                }
+
+                ListView {
+                    for data in child_files: Rectangle {
                         GridLayout {
                             Row {
                                 Rectangle {
                                     background: data.index == position.y ? #1ECBE1 : #E1341E;
 
-                                    TouchArea {
-
-                                        Text {
-                                            text: data.name;
-                                        }
+                                    Text {
+                                        text: data.name;
                                     }
                                 }
                             }
@@ -92,11 +92,11 @@ export component AppWindow inherits Window {
                     }
                 }
             }
-        }
 
-        ScrollView {
-            Text {
-                text: content_of_file;
+            ScrollView {
+                Text {
+                    text: content_of_file;
+                }
             }
         }
     }
