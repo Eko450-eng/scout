@@ -20,23 +20,22 @@ export struct SolItem {
     path: string,
 }
 
+export struct pos {
+    x: int,
+    y: int}
+
 export component AppWindow inherits Window {
     in property <[SolItem]> files;
     in property <[SolItem]> child_files;
     in property <string> content_of_file;
-    callback set-active-folder(string);
-    callback key_presed(string);
+    in-out property <pos> position;
+
+    callback key_presed(string, [SolItem]);
 
     width: 1000px;
     height: 500px;
 
     background: #383C4A;
-    FocusScope {
-        key-pressed(event) => {
-            key_presed(event.text);
-            accept
-        }
-    }
 
     GridLayout {
         ScrollView {
@@ -52,13 +51,8 @@ export component AppWindow inherits Window {
                                 background: #3B4052;
 
                                 TouchArea {
-
                                     Text {
                                         text: data.name;
-                                    }
-
-                                    clicked => {
-                                        set-active-folder(data.name)
                                     }
                                 }
                             }
@@ -76,19 +70,21 @@ export component AppWindow inherits Window {
 
             ListView {
                 for data in child_files: Rectangle {
-                    GridLayout {
-                        Row {
-                            Rectangle {
-                                background: #3B4052;
+                    FocusScope {
+                        key-pressed(event) => {
+                            key_presed(event.text, child_files);
+                            accept
+                        }
+                        GridLayout {
+                            Row {
+                                Rectangle {
+                                    background: data.index == position.y ? #1ECBE1 : #E1341E;
 
-                                TouchArea {
+                                    TouchArea {
 
-                                    Text {
-                                        text: data.name;
-                                    }
-
-                                    clicked => {
-                                        set-active-folder(data.name)
+                                        Text {
+                                            text: data.name;
+                                        }
                                     }
                                 }
                             }
@@ -98,8 +94,10 @@ export component AppWindow inherits Window {
             }
         }
 
-        Text {
-            text: content_of_file;
+        ScrollView {
+            Text {
+                text: content_of_file;
+            }
         }
     }
 }
