@@ -1,4 +1,4 @@
-import { Button, VerticalBox, ScrollView, ListView } from "std-widgets.slint";
+import { Button, VerticalBox, ScrollView, ListView, StandardListView } from "std-widgets.slint";
 
 export component FlatFileTree {
     in property <[string]> files;
@@ -25,36 +25,55 @@ export struct pos {
     y: int,
 }
 
+
 export component AppWindow inherits Window {
     in-out property <[SolItem]> files;
-    in-out property <[SolItem]> child_files;
+    in-out property <[StandardListViewItem]> child_files_standard;
     in-out property <string> content_of_file;
     in-out property <pos> position;
+    in-out property <int> child_pos: child.current-item;
 
-    callback key_presed(string);
+
+    in-out property <string> find_value: find-box.text;
+
+    callback key_presed(KeyEvent);
+    callback find(string);
 
     width: 1000px;
     height: 500px;
 
-    background: #383C4A;
+    background: #2E3440;
 
     FocusScope {
         key-pressed(event) => {
-            key_presed(event.text);
+            key_presed(event);
             accept
         }
-        GridLayout {
-            ScrollView {
-                width: parent.width / 3;
-                height: parent.height;
-                viewport-height: parent.height;
 
+        GridLayout {
+            Row {
+                find-box := TextInput {
+                    text: "Search";
+                }
+            }
+
+            Row {
+
+                // TODO: YOU KNOW WHAT TO DO
+
+            // TODO: Replace with pagination
+            // ScrollView {
+            //     width: parent.width / 3;
+            //     height: parent.height;
+            //     viewport-height: parent.height;
+            //
                 ListView {
+                    width: root.width / 3;
                     for data in files: Rectangle {
                         GridLayout {
                             Row {
                                 Rectangle {
-                                    background: #3B4052;
+                                    background: #434C5E;
 
                                     Text {
                                         text: data.name;
@@ -64,38 +83,34 @@ export component AppWindow inherits Window {
                         }
                     }
                 }
-            }
 
-            ScrollView {
-                width: parent.width / 3;
-                height: parent.height;
-                viewport-width: parent.width / 3;
-                viewport-height: parent.height;
-
-                Text{
-                    text: position.x;
-                }
-
-                ListView {
-                    for data in child_files: Rectangle {
-                        GridLayout {
-                            Row {
-                                Rectangle {
-                                    background: data.index == position.y ? #1ECBE1 : #E1341E;
-
-                                    Text {
-                                        text: data.name;
-                                    }
-                                }
-                            }
-                        }
+                child := StandardListView {
+                    width: root.width / 3;
+                    // for data in child_files: Rectangle {
+                    //     GridLayout {
+                    //         Row {
+                    //             Rectangle {
+                    //                 background: data.index == position.y ? #3B4252 : #4C56AA;
+                    //
+                    //                 Text {
+                    //                     text: data.name;
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
+                    current-item: position.y;
+                    model: child_files_standard;
+                    text := Text{
+                        text: position.y;
                     }
                 }
-            }
 
-            ScrollView {
-                Text {
-                    text: content_of_file;
+                ScrollView {
+                    width: root.width / 3;
+                    Text {
+                        text: content_of_file;
+                    }
                 }
             }
         }
