@@ -13,17 +13,25 @@ slint::include_modules!();
 fn main() -> Result<(), slint::PlatformError> {
     // Constants
     let window = AppWindow::new()?;
-    let ui_handle = window.as_weak();
-    let ui = ui_handle.unwrap();
+    let ui = window.as_weak().clone();
+
+    // Initialize Start Folders
 
     // Set defaults
     let mut history: Vec<PathBuf> = [].to_vec();
+    // TODO: Cleanup / Refactor
+
     let mut root = get_current_folder();
     let current_path = root.clone();
 
     root.pop();
     history.push(root);
     history.push(current_path);
+
+    let st = history.last().unwrap();
+    ui.unwrap().set_last_path(SharedString::from(
+        st.clone().into_os_string().into_string().unwrap(),
+    ));
 
     let parent_files_list =
         slint::ModelRc::new(VecModel::from(get_root_dir_files(history[0].clone())));
@@ -36,70 +44,88 @@ fn main() -> Result<(), slint::PlatformError> {
         ii.push(it);
     }
 
-    let current_view = ModelRc::new(VecModel::from(ii.clone()));
-    ui.set_files(parent_files_list);
-
-    set_child(ui.clone_strong(), files_list.clone());
-    // let pos = window.get_child_pos();
+    set_parent(ui.unwrap(), parent_files_list);
+    set_child(ui.unwrap(), files_list.clone());
 
     let mut depth = 1;
 
     // Handle Interaction
-    let up = SharedString::from("k");
-    let down = SharedString::from("j");
-    let into = SharedString::from("l");
-    let outof = SharedString::from("h");
-    let find = SharedString::from("f");
-    let quit = SharedString::from("q");
+    //
 
-    window.on_key_presed(move |key_event| {
-        let key = key_event.text;
-        println!(
-            "
-        {:?}
-        \n{:?}
-        \n{:?}
-        \n{:?}
-                 ",
-            ui.get_files().row_data(ui.get_child_pos() as usize),
-            ui.get_child_pos(),
-            ui.get_child_files_standard()
-                .row_data(ui.get_child_pos() as usize),
-            ui.get_position()
-        );
+    let keybinds: keybinds = keybinds {
+     up: SharedString::from("k"),
+     down: SharedString::from("j"),
+     into: SharedString::from("l"),
+     outof: SharedString::from("h"),
+     find: SharedString::from("f"),
+     quit: SharedString::from("q"),
+     esc: SharedString::from("\u{1b}"),
+    };
 
-        // TODO: Pagination instead of / or additional to scrolling
-        if key == up {
-            move_y(ui_handle.unwrap(), "up".to_string())
-        } else if key == down {
-            move_y(ui_handle.unwrap(), "down".to_string())
-        } else if key == quit {
-            set_child(ui.clone_strong(), files_list.clone());
-            ui.set_position(pos { x: 0, y: 0 })
-        } else if key == find {
-            let mut ii = vec![];
+    ui.unwrap().set_keybind(keybinds.clone());
 
-            for name in current_view.iter() {
-                let f = ui.get_find_value().to_string();
-                if name.text.contains(&f) {
-                    let it = StandardListViewItem::from(name.text);
-                    ii.push(it);
-                }
+    let findui = window.as_weak().clone();
+
+    findui.unwrap().on_find(move || {
+        findui.unwrap().set_position(pos { x: 0, y: 0 });
+        let parent_path = findui.unwrap().get_last_path();
+        let pathbuf: PathBuf = parent_path.to_string().into();
+
+        let mut ii = vec![];
+        let current_dir = fs::read_dir(pathbuf).unwrap();
+
+        let f = findui.unwrap().get_find_value().to_string();
+
+        for name in current_dir {
+            let name = name.unwrap().path();
+            println!("DIR: {:?}", name);
+            if name.to_str().expect("msg").contains(&f) {
+                let shared_string =
+                    SharedString::from(name.file_name().expect("Failed").to_str().unwrap());
+                let it = StandardListViewItem::from(shared_string);
+                ii.push(it);
             }
+        }
 
-            let cfs = ModelRc::new(VecModel::from(ii.clone()));
+        let cfs = ModelRc::new(VecModel::from(ii.clone()));
+        findui.unwrap().set_child_files_standard(cfs);
+    });
 
-            ui.set_child_files_standard(cfs);
-        } else if key == outof {
-            let (y, x, d) = move_out(ui_handle.unwrap(), &mut history, depth);
-            let new_pos = pos { x, y };
-            ui.set_position(new_pos);
-            depth = d;
-        } else if key == into {
-            let (y, x, d) = move_in(ui_handle.unwrap(), &mut history, depth);
-            let new_pos = pos { x, y };
-            ui.set_position(new_pos);
-            depth = d;
+    ui.unwrap().on_key_presed(move |key_event| {
+        let key = key_event.clone().text;
+
+        if !ui.unwrap().get_find_box_focus() {
+            if key == keybinds.esc {
+                println!(" {:?} ", ui.unwrap().get_find_box_focus());
+                ui.unwrap().set_find_box_focus(false);
+                ui.unwrap().set_child_focus(true);
+            } else if key == keybinds.up {
+                move_y(ui.unwrap(), "up".to_string())
+            } else if key == keybinds.down {
+                move_y(ui.unwrap(), "down".to_string())
+            } else if key == keybinds.quit {
+                set_child(ui.unwrap(), files_list.clone());
+                ui.unwrap().set_find_value("".into());
+                ui.unwrap().set_position(pos { x: 0, y: 0 })
+            } else if key == keybinds.find {
+                ui.unwrap().set_find_box_focus(true);
+                ui.unwrap().set_child_focus(false);
+            } else if key == keybinds.outof {
+                let (y, x, d) = move_out(ui.unwrap(), &mut history, depth);
+                let new_pos = pos { x, y };
+                ui.unwrap().set_position(new_pos);
+                depth = d;
+            } else if key == keybinds.into {
+                let (y, x, d) = move_in(ui.unwrap(), &mut history, depth);
+                let new_pos = pos { x, y };
+                ui.unwrap().set_position(new_pos);
+                depth = d;
+            }
+        } else if key == keybinds.esc {
+            ui.unwrap().set_find_box_focus(false);
+            ui.unwrap().set_child_focus(true)
+        } else {
+            return;
         }
     });
 
@@ -143,6 +169,18 @@ fn get_root_dir_files(dir: PathBuf) -> Vec<SolItem> {
     return file;
 }
 
+fn set_parent(ui: AppWindow, files_list: ModelRc<SolItem>) {
+    let mut ii = vec![];
+
+    for i in files_list.iter() {
+        let it = StandardListViewItem::from(i.name);
+        ii.push(it);
+    }
+    let cfs = ModelRc::new(VecModel::from(ii.clone()));
+
+    ui.set_files(cfs.clone());
+}
+
 fn set_child(ui: AppWindow, files_list: ModelRc<SolItem>) {
     let mut ii = vec![];
 
@@ -156,7 +194,7 @@ fn set_child(ui: AppWindow, files_list: ModelRc<SolItem>) {
 }
 
 fn move_y(ui: AppWindow, dir: String) {
-    println!("MOVING");
+    println!("MOVING {dir}");
     let mut current_position = ui.get_position().clone();
 
     if dir == "up" {
@@ -192,11 +230,15 @@ fn move_in(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, 
             parent = history[history.len() - 2].clone();
         }
         let parent_files_list = get_folders_list(parent);
-        ui.set_files(parent_files_list);
 
-        let files_list = get_folders_list(child);
+        let files_list = get_folders_list(child.clone());
 
-        set_child(ui, files_list);
+        set_parent(ui.clone_strong(), parent_files_list);
+        set_child(ui.clone_strong(), files_list);
+        let st = history.last().unwrap();
+        ui.set_last_path(SharedString::from(
+            st.clone().into_os_string().into_string().unwrap(),
+        ));
 
         return (
             // TODO: Handle X coordinates
@@ -250,11 +292,11 @@ fn move_out(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32,
 
         let mut child = history[0].clone();
 
-        // let mut parent = history[0].clone();
-        // if history[history.len() - 2].exists() {
-        //     parent = history[history.len() - 2].clone();
-        // }
-        // let parent_files_list = get_folders_list(parent);
+        let mut parent = history[0].clone();
+        if history[history.len() - 2].exists() {
+            parent = history[history.len() - 2].clone();
+        }
+        let parent_files_list = get_folders_list(parent);
 
         if history[history.len() - 1].exists() {
             child = history[history.len() - 1].clone();
@@ -262,6 +304,7 @@ fn move_out(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32,
 
         let files_list = get_folders_list(child);
 
+        set_parent(ui.clone_strong(), parent_files_list);
         set_child(ui, files_list);
 
         // ui.set_files(parent_files_list);
