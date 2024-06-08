@@ -1,0 +1,146 @@
+import { Button, VerticalBox, ScrollView, ListView, StandardListView } from "std-widgets.slint";
+
+export component FlatFileTree {
+    in property <[string]> files;
+}
+
+export struct pos {
+    x: int,
+    y: int,
+}
+
+export struct keybinds {
+     up: string,
+     down: string,
+     into: string,
+     outof: string,
+     find: string,
+     quit: string,
+     esc: string,
+}
+
+
+export component AppWindow inherits Window {
+    in-out property <[StandardListViewItem]> files;
+    in-out property <[StandardListViewItem]> child_files_standard;
+
+    in-out property <string> content_of_file;
+    in-out property <pos> position;
+    in-out property <int> child_pos: child.current-item;
+    in-out property <bool> child_focus: child.has-focus;
+
+    in-out property <string> last_path;
+
+    in-out property <string> find_value: find-box.text;
+    in-out property <bool> find-box-focus: find-box.has-focus;
+
+    in property <keybinds> keybind;
+
+    callback key_presed(KeyEvent);
+    callback find();
+    callback clear_filter();
+
+    width: 1000px;
+    height: 500px;
+
+    background: #2E3440;
+
+    GridLayout {
+        Row {
+            Rectangle {
+                border-color: find-box-focus ? green : red;
+                border-width: 1px;
+                height: 20px;
+                FocusScope {
+                    find-box := TextInput {
+                        text: "";
+                        edited => {
+                            find()
+                        }
+                        accepted => {
+                            child.focus();
+                            self.clear-focus();
+                        }
+                    }
+                }
+            }
+        }
+
+        Row {
+
+            HorizontalLayout {
+                Rectangle {
+                    border-color: parentlist.has-focus ? green : red;
+                    border-width: 1px;
+                    width: root.width / 3;
+                    parentlist := StandardListView {
+                        enabled: false;
+                        model: files;
+                    }
+                }
+
+                Rectangle {
+                    border-color: global-focus.has-focus ? green : red;
+                    border-width: 1px;
+                    width: root.width / 3;
+                    child := StandardListView {
+                        width: parent.width;
+                        current-item: position.y;
+                        model: child_files_standard;
+                        forward-focus: global-focus;
+                        global-focus := FocusScope {
+                            key-pressed(event) => {
+                                if (event.text == "f") {
+                                    find-box.focus();
+                                    reject
+                                } else if (event.text == "\u{19}" || event.text == "\u{10}" || event.text == Key.Tab) {
+                                    reject
+                                } else if (event.text == "q") {
+                                    find-box.text = "";
+                                    find();
+                                    reject
+                                } else {
+                                    key_presed(event);
+                                    accept
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: space-around;
+            width: root.width;
+
+            Text {
+                text: last_path;
+            }
+
+            Text {
+                text: "↑: " + keybind.up;
+            }
+
+            Text {
+                text: " ↓: " + keybind.down;
+            }
+
+            Text {
+                text: " ←: " + keybind.outof;
+            }
+
+            Text {
+                text: " →: " + keybind.into;
+            }
+
+            Text {
+                text: "Filter: " + keybind.find;
+            }
+
+            Text {
+                text: "Reset Filter: " + keybind.quit;
+            }
+        }
+    }
+}
