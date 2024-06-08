@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs, usize};
 
-use file_move::{get_current_folder, get_folders_list, get_root_dir_files};
+use file_move::{
+    create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files,
+};
 use slint::{Model, ModelRc, SharedString, StandardListViewItem, VecModel};
 
 const _APP_ID: &str = "de.wipdesign.scout";
@@ -16,8 +18,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Constants
     let window = AppWindow::new()?;
     let ui = window.as_weak().clone();
-
-    // Initialize Start Folders
+    let mainui = window.as_weak().clone();
 
     // Set defaults
     let mut history: Vec<PathBuf> = [].to_vec();
@@ -52,7 +53,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let mut depth = 1;
 
     // Handle Interaction
-    //
+    ui.unwrap().invoke_mainfocus(true);
 
     let keybinds: keybinds = keybinds {
         up: SharedString::from("k"),
@@ -66,8 +67,21 @@ fn main() -> Result<(), slint::PlatformError> {
 
     ui.unwrap().set_keybind(keybinds.clone());
 
-    let findui = window.as_weak().clone();
+    mainui.unwrap().on_refresh(move || {
+        let h = mainui.unwrap().get_last_path();
+        let files_list =
+            slint::ModelRc::new(VecModel::from(get_root_dir_files(PathBuf::from(h.to_string()))));
 
+        let mut ii = vec![];
+
+        for i in files_list.iter() {
+            let it = StandardListViewItem::from(i.text);
+            ii.push(it);
+        }
+        set_child(mainui.unwrap(), files_list.clone());
+    });
+
+    let findui = window.as_weak().clone();
     findui.unwrap().on_find(move || {
         findui.unwrap().set_position(pos { x: 0, y: 0 });
         let parent_path = findui.unwrap().get_last_path();
@@ -101,12 +115,42 @@ fn main() -> Result<(), slint::PlatformError> {
         findui.unwrap().set_child_files_standard(cfs);
     });
 
+    let deleteui = window.as_weak();
+    deleteui
+        .unwrap()
+        .on_delete(move |value| delete_file(value.to_string().into()));
+
+    let addui = window.as_weak();
+    addui.unwrap().on_create(move |value| {
+        create_file(
+            addui.unwrap().get_last_path().to_string().into(),
+            value.into(),
+        )
+    });
+
     ui.unwrap().on_key_presed(move |key_event| {
         let key = key_event.clone().text;
         if !ui.unwrap().get_find_box_focus() {
             if key == keybinds.esc {
-                ui.unwrap().set_find_box_focus(false);
-                ui.unwrap().set_child_focus(true);
+                ui.unwrap().invoke_findboxfocus(false);
+                ui.unwrap().invoke_mainfocus(true);
+            } else if key == "d" {
+                let data = ui
+                    .unwrap()
+                    .get_child_files_standard()
+                    .row_data(ui.unwrap().get_child_pos() as usize)
+                    .unwrap();
+
+                let mut path: PathBuf = history.last().clone().unwrap().to_path_buf();
+                path.push(data.text.to_string());
+                let file_name = path.to_str();
+                ui.unwrap()
+                    .set_delete_file_name(SharedString::from(file_name.unwrap()));
+                ui.unwrap().set_delete_file_visible(true);
+            } else if key == "a" {
+                ui.unwrap().set_new_file_visible(true);
+                ui.unwrap().invoke_newfilefocus(true);
+                ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.up {
                 move_y(ui.unwrap(), "up".to_string())
             } else if key == keybinds.down {
@@ -115,8 +159,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 set_child(ui.unwrap(), files_list.clone());
                 ui.unwrap().set_position(pos { x: 0, y: 0 });
             } else if key == keybinds.find {
-                ui.unwrap().set_find_box_focus(true);
-                ui.unwrap().set_child_focus(false);
+                ui.unwrap().invoke_findboxfocus(true);
+                ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.outof {
                 let (y, x, d) = move_out(ui.unwrap(), &mut history, depth);
                 let new_pos = pos { x, y };
@@ -129,8 +173,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 depth = d;
             }
         } else if key == keybinds.esc {
-            ui.unwrap().set_find_box_focus(false);
-            ui.unwrap().set_child_focus(true)
+            ui.unwrap().invoke_findboxfocus(false);
+            ui.unwrap().invoke_mainfocus(true)
         } else {
             return;
         }
@@ -193,7 +237,7 @@ fn move_in(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, 
 
     print!("2");
     if new_path.is_dir() {
-    print!("3");
+        print!("3");
         history.push(new_path);
 
         let mut child = history[0].clone();
@@ -247,7 +291,8 @@ fn move_in(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, 
                     let content = SharedString::from(c);
 
                     ui.set_content_of_file(content)
-                }print!("HI")
+                }
+                print!("HI")
             }
         }
         return (ui.get_position().y, ui.get_position().x, depth);
