@@ -30,6 +30,8 @@ export component AppWindow inherits Window {
     in-out property <pos> position;
 
     in-out property <int> child_pos: child.current-item;
+    in-out property <length> child_visible_height: child.visible-height;
+    in-out property <length> child_viewport_y: child.viewport-y;
 
     in-out property <string> content_of_file;
     in-out property <string> last_path;
@@ -52,6 +54,16 @@ export component AppWindow inherits Window {
     callback find();
     callback refresh();
     callback clear_filter();
+
+    public function scroll(dir: string) {
+        if (dir == "down") {
+            child.viewport-y -= 25px;
+        } else if (dir=="up"){
+            child.viewport-y += 25px;
+        } else if (dir=="start"){
+            child.viewport-y = 25px;
+        }
+    }
 
     public function deletefocus(val: bool) {
         if (val) {

@@ -6,6 +6,7 @@ use std::{env, fs, usize};
 use file_move::{
     create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files,
 };
+use slint::platform::software_renderer::PhysicalRegion;
 use slint::{Model, ModelRc, SharedString, StandardListViewItem, VecModel};
 
 const _APP_ID: &str = "de.wipdesign.scout";
@@ -157,8 +158,24 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap().invoke_newfilefocus(true);
                 ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.up {
-                move_y(ui.unwrap(), "up".to_string())
+                move_y(ui.unwrap(), "up".to_string());
+                let viewport_y = ui.unwrap().get_child_viewport_y();
+                if viewport_y <  0.0 {
+                    ui.unwrap().invoke_scroll("up".into());
+                }
             } else if key == keybinds.down {
+                let visible_height = ui.unwrap().get_child_visible_height();
+                let viewport_y = ui.unwrap().get_child_viewport_y();
+                let position = ui.unwrap().get_child_pos();
+
+                println!(
+                    "VH: {:?}\nVP {:?}\nPO {:?}",
+                    visible_height, viewport_y, position
+                );
+                if (position as f32 * 30.0) > visible_height / 2.0 {
+                    ui.unwrap().invoke_scroll("down".into());
+                }
+
                 move_y(ui.unwrap(), "down".to_string())
             } else if key == keybinds.quit {
                 set_child(ui.unwrap(), files_list.clone());
