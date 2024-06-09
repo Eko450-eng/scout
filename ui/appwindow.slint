@@ -17,6 +17,9 @@ export struct keybinds {
      find: string,
      quit: string,
      esc: string,
+     delete: string,
+     add: string,
+     search: string,
 }
 
 
@@ -40,7 +43,6 @@ export component AppWindow inherits Window {
     in-out property <bool> new_file_focus: new-file.has-focus;
 
     in-out property <bool> delete_file_visible: false;
-    //in-out property <bool> delete_file_focus: delete-file.has-focus;
 
     in property <keybinds> keybind;
 
@@ -50,6 +52,14 @@ export component AppWindow inherits Window {
     callback find();
     callback refresh();
     callback clear_filter();
+
+    public function deletefocus(val: bool) {
+        if (val) {
+            deletion-focus.focus();
+        } else {
+            deletion-focus.clear-focus();
+        }
+    }
 
     public function mainfocus(val: bool) {
         if (val) {
@@ -67,14 +77,6 @@ export component AppWindow inherits Window {
         }
     }
 
-    // public function deletefilefocus(val: bool){
-    //     if(val){
-    //         delete-file.focus();
-    //     }else{
-    //         delete-file.clear-focus();
-    //     }
-    // }
-
     public function findboxfocus(val: bool) {
         if (val) {
             find-box.focus();
@@ -83,10 +85,14 @@ export component AppWindow inherits Window {
         }
     }
 
-    width: 1000px;
-    height: 500px;
+    width: 1500px;
+    height: 1000px;
 
     background: #2E3440;
+
+    title: "Scout - " + last_path;
+    default-font-family: "Poppins";
+    icon: @image-url("../assets/icon.png");
 
     GridLayout {
         Row {
@@ -124,6 +130,7 @@ export component AppWindow inherits Window {
                     border-color: child.has-focus ? red : green;
                     border-width: 1px;
                     width: root.width / 3;
+                    forward-focus: global-focus;
                     child := StandardListView {
                         width: parent.width;
                         current-item: position.y;
@@ -188,27 +195,42 @@ export component AppWindow inherits Window {
     GridLayout {
         width: root.width;
         height: root.height;
+        visible: new_file_visible;
+        opacity: new_file_visible ? 1 : 0;
+        animate opacity { duration: 250ms; }
         Row {
-            FocusScope {
-                VerticalLayout {
-                    alignment: center;
-                    HorizontalLayout {
-                        alignment: center;
-                        Text {
-                            visible: new_file_visible;
-                            text: "New File Name: ";
+            Rectangle {
+                drop-shadow-color: rgba(0,0,0,0.5);
+                drop-shadow-blur: 2px;
+                FocusScope {
+                    key-pressed(event) => {
+                        if (event.text == keybind.esc) {
+                            self.clear-focus();
+                            child.focus();
+                            new_file_visible = false;
+                            accept
+                        } else {
+                            reject
                         }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "New File Name: ";
+                            }
 
-                        new-file := TextInput {
-                            visible: new_file_visible;
+                            new-file := TextInput {
+                                text: new_file_name;
 
-                            text: new_file_name;
-                            accepted => {
-                                create(self.text);
-                                self.clear-focus();
-                                mainfocus(true);
-                                new_file_visible = false;
-                                refresh();
+                                accepted => {
+                                    create(self.text);
+                                    self.clear-focus();
+                                    mainfocus(true);
+                                    new_file_visible = false;
+                                    refresh();
+                                }
                             }
                         }
                     }
@@ -217,29 +239,77 @@ export component AppWindow inherits Window {
         }
     }
 
-    delete-file := Dialog {
-        visible: delete_file_visible;
-        width: root.width;
-        VerticalLayout {
-            Text {
-                text: "Are you sure you want to delete: " + delete_file_name;
+    deletion-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == keybind.esc) {
+                self.clear-focus();
+                child.focus();
+                delete_file_visible = false;
+                accept
+            } else if (event.text == "y") {
+                delete(delete_file_name);
+                child.focus();
+                delete_file_visible = false;
+                refresh();
+                accept
+            } else if (event.text == "n") {
+                self.clear-focus();
+                delete_file_visible = false;
+                child.focus();
+                accept
+            } else {
+                reject
             }
+        }
+        GridLayout {
+            width: root.width;
+            height: root.height;
+            visible: delete_file_visible;
+            forward-focus: deletion-focus;
+            opacity: delete_file_visible ? 1 : 0;
+            animate opacity { duration: 250ms; }
 
-            StandardButton {
-                width: delete-file.width / 10;
-                kind: yes;
-                clicked => {
-                    delete(delete_file_name);
-                    delete_file_visible = false;
-                    refresh();
-                }
-            }
+            Row {
+                Rectangle {
+                    drop-shadow-color: rgba(0,0,0,0.5);
+                    drop-shadow-blur: 2px;
+                    forward-focus: deletion-focus;
 
-            StandardButton {
-                width: delete-file.width / 10;
-                kind: no;
-                clicked => {
-                    delete_file_visible = false;
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            width: root.width;
+
+                            delete-file := Dialog {
+                                width: root.width;
+                                VerticalLayout {
+                                    forward-focus: deletion-focus;
+                                    Text {
+                                        text: "Are you sure you want to delete: " + delete_file_name;
+                                    }
+
+                                    StandardButton {
+                                        width: 80px;
+                                        kind: yes;
+                                        clicked => {
+                                            delete(delete_file_name);
+                                            delete_file_visible = false;
+                                            refresh();
+                                        }
+                                    }
+
+                                    StandardButton {
+                                        width: 80px;
+                                        kind: no;
+                                        clicked => {
+                                            delete_file_visible = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
