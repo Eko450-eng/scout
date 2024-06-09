@@ -22,7 +22,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Set defaults
     let mut history: Vec<PathBuf> = [].to_vec();
-    // TODO: Cleanup / Refactor
 
     let mut root = get_current_folder();
     let current_path = root.clone();
@@ -63,14 +62,18 @@ fn main() -> Result<(), slint::PlatformError> {
         find: SharedString::from("f"),
         quit: SharedString::from("q"),
         esc: SharedString::from("\u{1b}"),
+        delete: SharedString::from("d"),
+        add: SharedString::from("a"),
+        search: SharedString::from("p"),
     };
 
     ui.unwrap().set_keybind(keybinds.clone());
 
     mainui.unwrap().on_refresh(move || {
         let h = mainui.unwrap().get_last_path();
-        let files_list =
-            slint::ModelRc::new(VecModel::from(get_root_dir_files(PathBuf::from(h.to_string()))));
+        let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(PathBuf::from(
+            h.to_string(),
+        ))));
 
         let mut ii = vec![];
 
@@ -134,7 +137,9 @@ fn main() -> Result<(), slint::PlatformError> {
             if key == keybinds.esc {
                 ui.unwrap().invoke_findboxfocus(false);
                 ui.unwrap().invoke_mainfocus(true);
-            } else if key == "d" {
+            } else if key == keybinds.delete {
+                ui.unwrap().invoke_deletefocus(true);
+                ui.unwrap().invoke_mainfocus(false);
                 let data = ui
                     .unwrap()
                     .get_child_files_standard()
@@ -147,7 +152,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap()
                     .set_delete_file_name(SharedString::from(file_name.unwrap()));
                 ui.unwrap().set_delete_file_visible(true);
-            } else if key == "a" {
+            } else if key == keybinds.add {
                 ui.unwrap().set_new_file_visible(true);
                 ui.unwrap().invoke_newfilefocus(true);
                 ui.unwrap().invoke_mainfocus(false);
@@ -162,10 +167,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap().invoke_findboxfocus(true);
                 ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.outof {
-                let (y, x, d) = move_out(ui.unwrap(), &mut history, depth);
-                let new_pos = pos { x, y };
-                ui.unwrap().set_position(new_pos);
-                depth = d;
+                if depth > 1 {
+                    let (y, x, d) = move_out(ui.unwrap(), &mut history, depth);
+                    let new_pos = pos { x, y };
+                    ui.unwrap().set_position(new_pos);
+                    depth = d;
+                }
             } else if key == keybinds.into {
                 let (y, x, d) = move_in(ui.unwrap(), &mut history, depth);
                 let new_pos = pos { x, y };
@@ -211,9 +218,11 @@ fn set_child(ui: AppWindow, files_list: ModelRc<StandardListViewItem>) {
 fn move_y(ui: AppWindow, dir: String) {
     let mut current_position = ui.get_position().clone();
 
-    if dir == "up" {
+    if dir == "up" && ui.get_child_pos() > 0 {
         current_position.y -= 1;
-    } else if dir == "down" {
+    } else if dir == "down"
+        && ((ui.get_child_pos() + 1) as usize) < ui.get_child_files_standard().iter().len()
+    {
         current_position.y += 1;
     }
     ui.set_position(pos {
