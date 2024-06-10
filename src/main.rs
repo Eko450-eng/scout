@@ -202,7 +202,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 let visible_height = ui.unwrap().get_child_visible_height();
                 let position = ui.unwrap().get_child_pos();
 
-                if (position as f32 * 30.0) > visible_height / 2.0 {
+                if (position as f32 * 25.0) > visible_height / 2.0 {
                     ui.unwrap().invoke_scroll("down".into());
                 }
 
