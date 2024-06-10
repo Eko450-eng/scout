@@ -288,7 +288,6 @@ fn move_in(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, 
         ));
 
         return (
-            // TODO: Handle X coordinates
             0,
             0,
             depth + 1,

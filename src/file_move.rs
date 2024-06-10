@@ -104,7 +104,7 @@ pub fn create_file(target: PathBuf, name: SharedString) {
 }
 
 // TODO: implement
-pub fn move_file(_file: PathBuf) {}
+pub fn _move_file(_file: PathBuf) {}
 
 pub fn delete_file(target: PathBuf) {
     if target.is_dir() {
