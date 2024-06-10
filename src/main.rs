@@ -1,4 +1,5 @@
 mod file_move;
+mod keyevents;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs, usize};
@@ -6,6 +7,7 @@ use std::{env, fs, usize};
 use file_move::{
     create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files, rename_file,
 };
+use keyevents::get_last_path;
 use slint::{Model, ModelRc, SharedString, StandardListViewItem, VecModel};
 
 const _APP_ID: &str = "de.wipdesign.scout";
@@ -152,8 +154,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let key = key_event.clone().text;
         if !ui.unwrap().get_find_box_focus() {
             if key == keybinds.moving {
-                let mut path = PathBuf::from(ui.unwrap().get_last_path().to_string());
-                let target = path.clone();
+                let mut last_path = get_last_path(ui.clone());
+                let target = last_path.clone();
                 let selection = ui
                     .unwrap()
                     .get_child_files_standard()
@@ -162,7 +164,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap()
                     .set_selected_file(selection.clone().unwrap().text);
 
-                path.push(selection.unwrap().text.to_string());
+                last_path.push(selection.unwrap().text.to_string());
 
                 ui.unwrap()
                     .set_move_file_name(SharedString::from(target.to_str().unwrap()));
