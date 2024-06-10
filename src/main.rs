@@ -4,9 +4,8 @@ use std::process::Command;
 use std::{env, fs, usize};
 
 use file_move::{
-    create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files,
+    create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files, rename_file,
 };
-use slint::platform::software_renderer::PhysicalRegion;
 use slint::{Model, ModelRc, SharedString, StandardListViewItem, VecModel};
 
 const _APP_ID: &str = "de.wipdesign.scout";
@@ -66,6 +65,7 @@ fn main() -> Result<(), slint::PlatformError> {
         delete: SharedString::from("d"),
         add: SharedString::from("a"),
         search: SharedString::from("p"),
+        moving: SharedString::from("m"),
     };
 
     ui.unwrap().set_keybind(keybinds.clone());
@@ -132,10 +132,45 @@ fn main() -> Result<(), slint::PlatformError> {
         )
     });
 
+    let moveui = window.as_weak();
+    moveui.unwrap().on_move(move |value| {
+        let path = PathBuf::from(moveui.unwrap().get_last_path().to_string());
+        let mut target = path.clone();
+        let selection = moveui
+            .unwrap()
+            .get_child_files_standard()
+            .row_data(moveui.unwrap().get_child_pos() as usize);
+
+        target.push(selection.unwrap().text.to_string());
+        rename_file(
+            target,
+            value.into(),
+        )
+    });
+
     ui.unwrap().on_key_presed(move |key_event| {
         let key = key_event.clone().text;
         if !ui.unwrap().get_find_box_focus() {
-            if key == keybinds.esc {
+            if key == keybinds.moving {
+                let mut path = PathBuf::from(ui.unwrap().get_last_path().to_string());
+                let target = path.clone();
+                let selection = ui
+                    .unwrap()
+                    .get_child_files_standard()
+                    .row_data(ui.unwrap().get_child_pos() as usize);
+
+                ui.unwrap()
+                    .set_selected_file(selection.clone().unwrap().text);
+
+                path.push(selection.unwrap().text.to_string());
+
+                ui.unwrap()
+                    .set_move_file_name(SharedString::from(target.to_str().unwrap()));
+
+                ui.unwrap().set_move_file_visible(true);
+                ui.unwrap().invoke_movefilefocus(true);
+                ui.unwrap().invoke_mainfocus(false);
+            } else if key == keybinds.esc {
                 ui.unwrap().invoke_findboxfocus(false);
                 ui.unwrap().invoke_mainfocus(true);
             } else if key == keybinds.delete {
@@ -160,18 +195,13 @@ fn main() -> Result<(), slint::PlatformError> {
             } else if key == keybinds.up {
                 move_y(ui.unwrap(), "up".to_string());
                 let viewport_y = ui.unwrap().get_child_viewport_y();
-                if viewport_y <  0.0 {
+                if viewport_y < 0.0 {
                     ui.unwrap().invoke_scroll("up".into());
                 }
             } else if key == keybinds.down {
                 let visible_height = ui.unwrap().get_child_visible_height();
-                let viewport_y = ui.unwrap().get_child_viewport_y();
                 let position = ui.unwrap().get_child_pos();
 
-                println!(
-                    "VH: {:?}\nVP {:?}\nPO {:?}",
-                    visible_height, viewport_y, position
-                );
                 if (position as f32 * 30.0) > visible_height / 2.0 {
                     ui.unwrap().invoke_scroll("down".into());
                 }

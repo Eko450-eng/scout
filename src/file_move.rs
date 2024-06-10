@@ -106,6 +106,23 @@ pub fn create_file(target: PathBuf, name: SharedString) {
 // TODO: implement
 pub fn _move_file(_file: PathBuf) {}
 
+pub fn rename_file(file: PathBuf, target_string: SharedString) {
+    let mut target = PathBuf::new();
+    target.push(target_string.to_string());
+
+    match fs::rename(file.clone(), target.clone()) {
+        Ok(_) => {
+            println!("Moved from {:?} to {:?}", file, target)
+        }
+        Err(err) => {
+            println!(
+                "Could not Rename / Move from {:?} to {:?} because: {:?}",
+                file, target, err
+            )
+        }
+    }
+}
+
 pub fn delete_file(target: PathBuf) {
     if target.is_dir() {
         match fs::remove_dir_all(target.clone()) {
