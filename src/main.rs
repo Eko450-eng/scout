@@ -170,13 +170,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     .set_move_file_name(SharedString::from(target.to_str().unwrap()));
 
                 ui.unwrap().set_move_file_visible(true);
-                ui.unwrap().invoke_movefilefocus(true);
+                // ui.unwrap().invoke_movefilefocus(true);
                 ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.esc {
                 ui.unwrap().invoke_findboxfocus(false);
                 ui.unwrap().invoke_mainfocus(true);
             } else if key == keybinds.delete {
-                ui.unwrap().invoke_deletefocus(true);
+                // ui.unwrap().invoke_deletefocus(true);
                 ui.unwrap().invoke_mainfocus(false);
                 let data = ui
                     .unwrap()
@@ -192,7 +192,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap().set_delete_file_visible(true);
             } else if key == keybinds.add {
                 ui.unwrap().set_new_file_visible(true);
-                ui.unwrap().invoke_newfilefocus(true);
+                // ui.unwrap().invoke_newfilefocus(true);
                 ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.up {
                 move_y(ui.unwrap(), "up".to_string());
