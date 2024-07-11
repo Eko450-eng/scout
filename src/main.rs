@@ -23,32 +23,30 @@ fn main() -> Result<(), slint::PlatformError> {
     let mainui = window.as_weak().clone();
 
     // Set defaults
-    let mut history: Vec<PathBuf> = [].to_vec();
+    let current_path = get_current_folder();
 
-    let mut root = get_current_folder();
-    let current_path = root.clone();
-
-    root.pop();
-    history.push(root);
-    history.push(current_path);
-
-    let st = history.last().unwrap();
     ui.unwrap().set_last_path(SharedString::from(
-        st.clone().into_os_string().into_string().unwrap(),
+        current_path.clone().into_os_string().into_string().unwrap(),
     ));
 
-    let parent_files_list =
-        slint::ModelRc::new(VecModel::from(get_root_dir_files(history[0].clone())));
-    let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(history[1].clone())));
+    let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(current_path.clone())));
 
-    let mut ii = vec![];
+    let mut ii: Vec<ScoutItem> = vec![];
 
     for i in files_list.iter() {
         let it = StandardListViewItem::from(i.text);
-        ii.push(it);
+        let item = ScoutItem {
+            path: current_path
+                .clone()
+                .into_os_string()
+                .into_string()
+                .unwrap()
+                .into(),
+            viewItem: it,
+        };
+        ii.push(item)
     }
 
-    set_parent(ui.unwrap(), parent_files_list);
     set_child(ui.unwrap(), files_list.clone());
 
     let mut depth = 1;
@@ -122,9 +120,11 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let deleteui = window.as_weak();
-    deleteui
-        .unwrap()
-        .on_delete(move |value| delete_file(value.to_string().into()));
+    deleteui.unwrap().on_delete(move |value| {
+        deleteui
+            .unwrap()
+            .invoke_deletefocus(delete_file(value.to_string().into()))
+    });
 
     let addui = window.as_weak();
     addui.unwrap().on_create(move |value| {
@@ -144,10 +144,7 @@ fn main() -> Result<(), slint::PlatformError> {
             .row_data(moveui.unwrap().get_child_pos() as usize);
 
         target.push(selection.unwrap().text.to_string());
-        rename_file(
-            target,
-            value.into(),
-        )
+        rename_file(target, value.into())
     });
 
     ui.unwrap().on_key_presed(move |key_event| {
@@ -176,20 +173,21 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap().invoke_findboxfocus(false);
                 ui.unwrap().invoke_mainfocus(true);
             } else if key == keybinds.delete {
-                // ui.unwrap().invoke_deletefocus(true);
-                ui.unwrap().invoke_mainfocus(false);
-                let data = ui
-                    .unwrap()
+                let me = ui.unwrap();
+                me.invoke_mainfocus(false);
+                let current_path = me.get_last_path();
+                let mut path: PathBuf = PathBuf::from(current_path.to_string());
+
+                let data = me
                     .get_child_files_standard()
-                    .row_data(ui.unwrap().get_child_pos() as usize)
+                    .row_data(me.get_child_pos() as usize)
                     .unwrap();
 
-                let mut path: PathBuf = history.last().clone().unwrap().to_path_buf();
                 path.push(data.text.to_string());
                 let file_name = path.to_str();
-                ui.unwrap()
-                    .set_delete_file_name(SharedString::from(file_name.unwrap()));
-                ui.unwrap().set_delete_file_visible(true);
+                me.set_delete_file_name(SharedString::from(file_name.unwrap()));
+                me.set_delete_file_visible(true);
+                me.invoke_deletefocus(true)
             } else if key == keybinds.add {
                 ui.unwrap().set_new_file_visible(true);
                 // ui.unwrap().invoke_newfilefocus(true);
@@ -216,14 +214,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.unwrap().invoke_findboxfocus(true);
                 ui.unwrap().invoke_mainfocus(false);
             } else if key == keybinds.outof {
-                if depth > 1 {
-                    let (y, x, d) = move_out(ui.unwrap(), &mut history, depth);
-                    let new_pos = pos { x, y };
-                    ui.unwrap().set_position(new_pos);
-                    depth = d;
-                }
+                let (y, x, _) = move_out(ui.unwrap(), depth);
+                let new_pos = pos { x, y };
+                ui.unwrap().set_position(new_pos);
             } else if key == keybinds.into {
-                let (y, x, d) = move_in(ui.unwrap(), &mut history, depth);
+                let (y, x, d) = move_in(ui.unwrap(), depth);
                 let new_pos = pos { x, y };
                 ui.unwrap().set_position(new_pos);
                 depth = d;
@@ -238,18 +233,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Startup
     window.run()
-}
-
-fn set_parent(ui: AppWindow, files_list: ModelRc<StandardListViewItem>) {
-    let mut ii = vec![];
-
-    for i in files_list.iter() {
-        let it = StandardListViewItem::from(i.text);
-        ii.push(it);
-    }
-    let cfs = ModelRc::new(VecModel::from(ii.clone()));
-
-    ui.set_files(cfs.clone());
 }
 
 fn set_child(ui: AppWindow, files_list: ModelRc<StandardListViewItem>) {
@@ -280,121 +263,96 @@ fn move_y(ui: AppWindow, dir: String) {
     })
 }
 
-fn move_in(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, i32) {
-    let mut new_path: PathBuf = PathBuf::new();
-    if history.last().is_some() {
-        new_path = history.last().expect("No last Element").clone();
-    }
+fn open_file(ui: AppWindow, depth: i32, target: PathBuf) -> (i32, i32, i32) {
+    let new_path_ext = target
+        .extension()
+        .expect(&format!("Failed to read extension of: {:?}", target));
+    let ext = new_path_ext;
+    let ext_str = ext.to_str();
+    match ext_str {
+        Some("lua") => {
+            Command::new("wezterm")
+                .arg("start")
+                .arg("nvim")
+                .arg(&target)
+                .status()
+                .expect("Failed to open");
+        }
+        Some("") => {
+            Command::new("wezterm")
+                .arg("start")
+                .arg("nvim")
+                .arg(&target)
+                .status()
+                .expect("Failed to open");
+        }
+        _ => {
+            if fs::read_to_string(target.clone()).is_ok() {
+                let c = fs::read_to_string(target.clone()).expect("Failed to Read file");
 
-    print!("1");
+                let content = SharedString::from(c);
+
+                ui.set_content_of_file(content)
+            }
+        }
+    }
+    return (ui.get_position().y, ui.get_position().x, depth);
+}
+
+fn cant_open(ui: AppWindow, target: PathBuf) -> (i32, i32, i32) {
+    if fs::read_to_string(target.clone()).is_ok() {
+        let c = fs::read_to_string(target.clone()).expect("Failed to Read file");
+
+        let content = SharedString::from(c);
+
+        ui.set_content_of_file(content);
+    }
+    return (0, 0, 0);
+}
+
+fn move_in(ui: AppWindow, depth: i32) -> (i32, i32, i32) {
+    let active_path = ui.get_last_path().to_string();
+    let mut new_path: PathBuf = PathBuf::new();
+    new_path.push(active_path);
+
     let data = ui
         .get_child_files_standard()
         .row_data(ui.get_child_pos() as usize);
     let name = Some(data).unwrap_or_default();
     new_path.push(name.unwrap().text.to_string());
+    println!("{:?}", new_path);
 
-    print!("2");
     if new_path.is_dir() {
-        print!("3");
-        history.push(new_path);
+        let files_list = get_folders_list(new_path.clone());
 
-        let mut child = history[0].clone();
-
-        if history[history.len() - 1].exists() {
-            child = history[history.len() - 1].clone();
-        }
-
-        let mut parent = history[0].clone();
-        if history[history.len() - 2].exists() {
-            parent = history[history.len() - 2].clone();
-        }
-        let parent_files_list = get_folders_list(parent);
-
-        let files_list = get_folders_list(child.clone());
-
-        set_parent(ui.clone_strong(), parent_files_list);
         set_child(ui.clone_strong(), files_list);
-        let st = history.last().unwrap();
+
         ui.set_last_path(SharedString::from(
-            st.clone().into_os_string().into_string().unwrap(),
+            new_path.clone().into_os_string().into_string().unwrap(),
         ));
 
-        return (
-            0,
-            0,
-            depth + 1,
-        );
-    } else if new_path.extension().is_some() {
-        print!("4");
-        let new_path_ext = new_path
-            .extension()
-            .expect(&format!("Failed to read extension of: {:?}", new_path));
-        let ext = new_path_ext;
-        let ext_str = ext.to_str();
-        match ext_str {
-            Some("lua") => {
-                Command::new("wezterm")
-                    .arg("start")
-                    .arg("nvim")
-                    .arg(&new_path)
-                    .status()
-                    .expect("Failed to open");
-            }
-            _ => {
-                if fs::read_to_string(new_path.clone()).is_ok() {
-                    print!("Okay");
-                    let c = fs::read_to_string(new_path.clone()).expect("Failed to Read file");
-
-                    let content = SharedString::from(c);
-
-                    ui.set_content_of_file(content)
-                }
-                print!("HI")
-            }
-        }
-        return (ui.get_position().y, ui.get_position().x, depth);
+        return (0, 0, depth + 1);
+    } else if fs::read_to_string(new_path.clone()).is_ok() {
+        // if new_path.extension().is_some() {
+        return open_file(ui, depth, new_path);
     } else {
-        if fs::read_to_string(new_path.clone()).is_ok() {
-            print!("Okay");
-            let c = fs::read_to_string(new_path.clone()).expect("Failed to Read file");
-
-            let content = SharedString::from(c);
-
-            ui.set_content_of_file(content);
-        }
-        return (0, 0, 0);
+        return cant_open(ui, new_path);
     }
 }
 
-fn move_out(ui: AppWindow, history: &mut Vec<PathBuf>, depth: i32) -> (i32, i32, i32) {
-    let mut new_path = history[depth as usize].clone();
+fn move_out(ui: AppWindow, depth: i32) -> (i32, i32, i32) {
+    let last_path_string = ui.get_last_path();
+    let mut last_path: PathBuf = PathBuf::from(last_path_string.clone().to_string());
 
-    new_path.pop();
+    last_path.pop();
 
-    if new_path.is_dir() {
-        if history.len() > 1 {
-            history.pop();
-        }
+    if last_path.is_dir() {
+        let files_list = get_folders_list(last_path.clone());
+        ui.as_weak().unwrap().set_last_path(SharedString::from(
+            last_path.clone().into_os_string().into_string().unwrap(),
+        ));
 
-        let mut child = history[0].clone();
-
-        let mut parent = history[0].clone();
-        if history[history.len() - 2].exists() {
-            parent = history[history.len() - 2].clone();
-        }
-        let parent_files_list = get_folders_list(parent);
-
-        if history[history.len() - 1].exists() {
-            child = history[history.len() - 1].clone();
-        }
-
-        let files_list = get_folders_list(child);
-
-        set_parent(ui.clone_strong(), parent_files_list);
         set_child(ui, files_list);
-
-        // ui.set_files(parent_files_list);
-
         return (0, 0, depth - 1);
     } else {
         return (ui.get_position().y, ui.get_position().x, depth);

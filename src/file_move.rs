@@ -103,9 +103,6 @@ pub fn create_file(target: PathBuf, name: SharedString) {
     }
 }
 
-// TODO: implement
-pub fn _move_file(_file: PathBuf) {}
-
 pub fn rename_file(file: PathBuf, target_string: SharedString) {
     let mut target = PathBuf::new();
     target.push(target_string.to_string());
@@ -123,18 +120,19 @@ pub fn rename_file(file: PathBuf, target_string: SharedString) {
     }
 }
 
-pub fn delete_file(target: PathBuf) {
+pub fn delete_file(target: PathBuf) -> bool{
     if target.is_dir() {
         match fs::remove_dir_all(target.clone()) {
-            Ok(_) => return,
+            Ok(_) => return false,
             Err(err) => println!("Could not delete: {:?} \nBecause {:?}", target, err),
         }
     } else if target.is_file() {
         match fs::remove_file(target.clone()) {
-            Ok(_) => return,
+            Ok(_) => return false,
             Err(err) => println!("Could not delete: {:?} \nBecause {:?}", target, err),
         }
     } else {
         println!("Could not delete: {:?}", target);
     }
+    return false;
 }

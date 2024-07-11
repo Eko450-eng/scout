@@ -9,6 +9,11 @@ export struct pos {
     y: int,
 }
 
+export struct ScoutItem {
+    viewItem: StandardListViewItem,
+    path: string,
+}
+
 export struct keybinds {
      up: string,
      down: string,
@@ -23,34 +28,42 @@ export struct keybinds {
      moving: string,
 }
 
-export component FavoriteView inherits VerticalLayout {
-    height: 100%;
-}
+export component AppWindow inherits Window {
 
-// global functions {
-//     public function focus-manager(item: Class, val: bool) {
-//         if (val) {
-//             item.focus();
-//         } else {
-//             item.clear-focus();
-//         }
-//     }
-// }
-
-export component DirectoryView inherits VerticalLayout {
-    in-out property <[StandardListViewItem]> files;
     in-out property <[StandardListViewItem]> child_files_standard;
+
     in-out property <pos> position;
 
     in-out property <int> child_pos: child.current-item;
     in-out property <length> child_visible_height: child.visible-height;
     in-out property <length> child_viewport_y: child.viewport-y;
-    in-out property <string> selected_file;
+
+    in-out property <string> content_of_file;
     in-out property <string> last_path;
+    in-out property <string> find_value: find-box.text;
+    in-out property <string> new_file_name;
+    in-out property <string> move_file_name;
+    in-out property <string> delete_file_name;
+    in-out property <string> selected_file;
+
     in-out property <bool> child_focus: child.has-focus;
+    in-out property <bool> find-box-focus: find-box.has-focus;
+    in-out property <bool> new_file_visible: false;
+    in-out property <bool> new_file_focus: new-file.has-focus;
+    in-out property <bool> move_file_visible: false;
+    in-out property <bool> move_file_focus: move-file.has-focus;
+
+    in-out property <bool> delete_file_visible: false;
+
     in property <keybinds> keybind;
 
     callback key_presed(KeyEvent);
+    callback create(string);
+    callback move(string);
+    callback delete(string);
+    callback find();
+    callback refresh();
+    callback clear_filter();
 
     public function scroll(dir: string) {
         if (dir == "down") {
@@ -62,106 +75,57 @@ export component DirectoryView inherits VerticalLayout {
         }
     }
 
-    height: 100%;
-
-    Rectangle {
-        border-color: child.has-focus ? red : green;
-        border-width: 1px;
-        width: root.width / 3;
-        forward-focus: global-focus;
-        child := StandardListView {
-            width: parent.width;
-            current-item: position.y;
-            model: child_files_standard;
-            forward-focus: global-focus;
-            global-focus := FocusScope {
-                key-pressed(event) => {
-                    if (event.text == "f") {
-                        // find-box.focus();
-                        reject
-                    } else if (event.text == "\u{19}" || event.text == "\u{10}" || event.text == Key.Tab) {
-                        reject
-                    } else if (event.text == "q") {
-                        // find-box.text = "";
-                        // find();
-                        reject
-                    } else {
-                        // key_presed(event);
-                        accept
-                    }
-                }
-            }
+    public function deletefocus(val: bool) {
+        if (val) {
+            deletion-focus.focus();
+        } else {
+            deletion-focus.clear-focus();
         }
     }
-}
 
-export component AppWindow inherits Window {
-    in-out property <string> content_of_file;
-    in-out property <string> find_value: find-box.text;
-    in-out property <string> new_file_name;
-    in-out property <string> move_file_name;
-    in-out property <string> delete_file_name;
+    public function mainfocus(val: bool) {
+        if (val) {
+            child.focus();
+        } else {
+            child.clear-focus();
+        }
+    }
 
-    in-out property <bool> find-box-focus: find-box.has-focus;
-    in-out property <bool> new_file_visible: false;
-    // in-out property <bool> new_file_focus: new-file.has-focus;
-    in-out property <bool> move_file_visible: false;
-    // in-out property <bool> move_file_focus: move-file.has-focus;
+    public function newfilefocus(val: bool) {
+        if (val) {
+            new-file.focus();
+        } else {
+            new-file.clear-focus();
+        }
+    }
 
-    in-out property <bool> delete_file_visible: false;
+    public function movefilefocus(val: bool) {
+        if (val) {
+            move-file.focus();
+        } else {
+            move-file.clear-focus();
+        }
+    }
 
-    callback create(string);
-    callback move(string);
-    callback delete(string);
-    callback find();
-    callback refresh();
-    callback clear_filter();
+    public function findboxfocus(val: bool) {
+        if (val) {
+            find-box.focus();
+        } else {
+            find-box.clear-focus();
+        }
+    }
 
-    // public function deletefocus(val: bool) {
-    //     if (val) {
-    //         deletion-focus.focus();
-    //     } else {
-    //         deletion-focus.clear-focus();
-    //     }
-    // }
+    width: 1500px;
+    height: 1000px;
 
+    background: #2E3440;
 
-    // public function newfilefocus(val: bool) {
-    //     if (val) {
-    //         new-file.focus();
-    //     } else {
-    //         new-file.clear-focus();
-    //     }
-    // }
-
-    // public function movefilefocus(val: bool) {
-    //     if (val) {
-    //         move-file.focus();
-    //     } else {
-    //         move-file.clear-focus();
-    //     }
-    // }
+    title: "Scout - " + last_path;
+    default-font-family: "Poppins";
+    icon: @image-url("../assets/icon.png");
 
     GridLayout {
         Row {
-            Rectangle {
-                Button {
-                    text: "Settings";
-                }
-            }
-
-            Rectangle {
-                Button {
-                    text: "File";
-                }
-            }
-
-            Rectangle {
-                Button {
-                    text: "Add Fav";
-                }
-            }
-
             Rectangle {
                 border-width: 1px;
                 height: 20px;
@@ -172,7 +136,7 @@ export component AppWindow inherits Window {
                             find()
                         }
                         accepted => {
-                            // child.focus();
+                            child.focus();
                             self.clear-focus();
                         }
                     }
@@ -181,386 +145,249 @@ export component AppWindow inherits Window {
         }
 
         Row {
-            VerticalBox {
-                Text {
-                    text: "FAVORITES";
+
+            HorizontalLayout {
+                Rectangle {
+                    border-color: child.has-focus ? red : green;
+                    border-width: 1px;
+                    width: root.width / 3;
+                    forward-focus: global-focus;
+                    child := StandardListView {
+                        width: parent.width;
+                        current-item: position.y;
+                        model: child_files_standard;
+                        forward-focus: global-focus;
+                        global-focus := FocusScope {
+                            key-pressed(event) => {
+                                if (event.text == "f") {
+                                    find-box.focus();
+                                    reject
+                                } else if (event.text == "\u{19}" || event.text == "\u{10}" || event.text == Key.Tab) {
+                                    reject
+                                } else if (event.text == "q") {
+                                    find-box.text = "";
+                                    find();
+                                    reject
+                                } else {
+                                    key_presed(event);
+                                    accept
+                                }
+                            }
+                        }
+                    }
                 }
-            }
 
-            DirectoryView { }
-
-            VerticalBox {
-                Text {
-                    text: "FAVORITES";
+                Rectangle {
+                    border-width: 1px;
+                    width: root.width / 3;
+                    StandardListView {
+                        Text {
+                            text: content_of_file;
+                        }
+                    }
                 }
             }
         }
 
-        Row { }
+        HorizontalLayout {
+            alignment: space-around;
+            width: root.width;
+
+            Text {
+                text: last_path;
+            }
+
+            Text {
+                text: "↑: " + keybind.up;
+            }
+
+            Text {
+                text: " ↓: " + keybind.down;
+            }
+
+            Text {
+                text: " ←: " + keybind.outof;
+            }
+
+            Text {
+                text: " →: " + keybind.into;
+            }
+
+            Text {
+                text: "Filter: " + keybind.find;
+            }
+
+            Text {
+                text: "Reset Filter: " + keybind.quit;
+            }
+        }
+    }
+
+    GridLayout {
+        width: root.width;
+        height: root.height;
+        visible: move_file_visible;
+        opacity: move_file_visible ? 1 : 0;
+        animate opacity { duration: 250ms; }
+        Row {
+            Rectangle {
+                drop-shadow-color: rgba(0,0,0,0.5);
+                drop-shadow-blur: 2px;
+                FocusScope {
+                    key-pressed(event) => {
+                        if (event.text == keybind.esc) {
+                            self.clear-focus();
+                            child.focus();
+                            move_file_visible = false;
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Rename / Move " + selected_file + " to: ";
+                            }
+
+                            move-file := TextInput {
+                                text: move_file_name;
+
+                                accepted => {
+                                    move(self.text);
+                                    self.clear-focus();
+                                    mainfocus(true);
+                                    move_file_visible = false;
+                                    refresh();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    GridLayout {
+        width: root.width;
+        height: root.height;
+        visible: new_file_visible;
+        opacity: new_file_visible ? 1 : 0;
+        animate opacity { duration: 250ms; }
+        Row {
+            Rectangle {
+                drop-shadow-color: rgba(0,0,0,0.5);
+                drop-shadow-blur: 2px;
+                FocusScope {
+                    key-pressed(event) => {
+                        if (event.text == keybind.esc) {
+                            self.clear-focus();
+                            child.focus();
+                            new_file_visible = false;
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "New File Name: ";
+                            }
+
+                            new-file := TextInput {
+                                text: new_file_name;
+
+                                accepted => {
+                                    create(self.text);
+                                    self.clear-focus();
+                                    mainfocus(true);
+                                    new_file_visible = false;
+                                    refresh();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    deletion-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == keybind.esc) {
+                self.clear-focus();
+                child.focus();
+                delete_file_visible = false;
+                accept
+            } else if (event.text == "y") {
+                delete(delete_file_name);
+                child.focus();
+                delete_file_visible = false;
+                refresh();
+                accept
+            } else if (event.text == "n") {
+                self.clear-focus();
+                delete_file_visible = false;
+                child.focus();
+                accept
+            } else {
+                reject
+            }
+        }
+
+        GridLayout {
+            width: root.width;
+            height: root.height;
+            visible: delete_file_visible;
+            opacity: delete_file_visible ? 1 : 0;
+            animate opacity { duration: 250ms; }
+
+            Row {
+                Rectangle {
+                    drop-shadow-color: rgba(0,0,0,0.5);
+                    drop-shadow-blur: 2px;
+
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            width: root.width;
+
+                            delete-file := Dialog {
+                                width: root.width;
+                                VerticalLayout {
+                                    Text {
+                                        text: "Are you sure you want to delete: " + delete_file_name;
+                                    }
+
+                                    StandardButton {
+                                        width: 80px;
+                                        kind: yes;
+                                        clicked => {
+                                            delete(delete_file_name);
+                                            delete_file_visible = false;
+                                            refresh();
+                                        }
+                                    }
+
+                                    StandardButton {
+                                        width: 80px;
+                                        kind: no;
+                                        clicked => {
+                                            delete_file_visible = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
-
-// export component AppWindowOld inherits Window {
-//     in-out property <[StandardListViewItem]> files;
-//     in-out property <[StandardListViewItem]> child_files_standard;
-//
-//     in-out property <pos> position;
-//
-//     in-out property <int> child_pos: child.current-item;
-//     in-out property <length> child_visible_height: child.visible-height;
-//     in-out property <length> child_viewport_y: child.viewport-y;
-//
-//     in-out property <string> content_of_file;
-//     in-out property <string> last_path;
-//     in-out property <string> find_value: find-box.text;
-//     in-out property <string> new_file_name;
-//     in-out property <string> move_file_name;
-//     in-out property <string> delete_file_name;
-//     in-out property <string> selected_file;
-//
-//     in-out property <bool> child_focus: child.has-focus;
-//     in-out property <bool> find-box-focus: find-box.has-focus;
-//     in-out property <bool> new_file_visible: false;
-//     in-out property <bool> new_file_focus: new-file.has-focus;
-//     in-out property <bool> move_file_visible: false;
-//     in-out property <bool> move_file_focus: move-file.has-focus;
-//
-//     in-out property <bool> delete_file_visible: false;
-//
-//     in property <keybinds> keybind;
-//
-//     callback key_presed(KeyEvent);
-//     callback create(string);
-//     callback move(string);
-//     callback delete(string);
-//     callback find();
-//     callback refresh();
-//     callback clear_filter();
-//
-//     public function scroll(dir: string) {
-//         if (dir == "down") {
-//             child.viewport-y -= 25px;
-//         } else if (dir == "up") {
-//             child.viewport-y += 25px;
-//         } else if (dir == "start") {
-//             child.viewport-y = 25px;
-//         }
-//     }
-//
-//     public function deletefocus(val: bool) {
-//         if (val) {
-//             deletion-focus.focus();
-//         } else {
-//             deletion-focus.clear-focus();
-//         }
-//     }
-//
-//     public function mainfocus(val: bool) {
-//         if (val) {
-//             child.focus();
-//         } else {
-//             child.clear-focus();
-//         }
-//     }
-//
-//     public function newfilefocus(val: bool) {
-//         if (val) {
-//             new-file.focus();
-//         } else {
-//             new-file.clear-focus();
-//         }
-//     }
-//
-//     public function movefilefocus(val: bool) {
-//         if (val) {
-//             move-file.focus();
-//         } else {
-//             move-file.clear-focus();
-//         }
-//     }
-//
-//     public function findboxfocus(val: bool) {
-//         if (val) {
-//             find-box.focus();
-//         } else {
-//             find-box.clear-focus();
-//         }
-//     }
-//
-//     width: 1500px;
-//     height: 1000px;
-//
-//     background: #2E3440;
-//
-//     title: "Scout - " + last_path;
-//     default-font-family: "Poppins";
-//     icon: @image-url("../assets/icon.png");
-//
-//     GridLayout {
-//         Row {
-//             Rectangle {
-//                 border-width: 1px;
-//                 height: 20px;
-//                 FocusScope {
-//                     find-box := TextInput {
-//                         text: "";
-//                         edited => {
-//                             find()
-//                         }
-//                         accepted => {
-//                             child.focus();
-//                             self.clear-focus();
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//
-//         Row {
-//
-//             HorizontalLayout {
-//                 Rectangle {
-//                     border-width: 1px;
-//                     width: root.width / 3;
-//                     parentlist := StandardListView {
-//                         enabled: false;
-//                         model: files;
-//                     }
-//                 }
-//
-//                 Rectangle {
-//                     border-color: child.has-focus ? red : green;
-//                     border-width: 1px;
-//                     width: root.width / 3;
-//                     forward-focus: global-focus;
-//                     child := StandardListView {
-//                         width: parent.width;
-//                         current-item: position.y;
-//                         model: child_files_standard;
-//                         forward-focus: global-focus;
-//                         global-focus := FocusScope {
-//                             key-pressed(event) => {
-//                                 if (event.text == "f") {
-//                                     find-box.focus();
-//                                     reject
-//                                 } else if (event.text == "\u{19}" || event.text == "\u{10}" || event.text == Key.Tab) {
-//                                     reject
-//                                 } else if (event.text == "q") {
-//                                     find-box.text = "";
-//                                     find();
-//                                     reject
-//                                 } else {
-//                                     key_presed(event);
-//                                     accept
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//
-//         HorizontalLayout {
-//             alignment: space-around;
-//             width: root.width;
-//
-//             Text {
-//                 text: last_path;
-//             }
-//
-//             Text {
-//                 text: "↑: " + keybind.up;
-//             }
-//
-//             Text {
-//                 text: " ↓: " + keybind.down;
-//             }
-//
-//             Text {
-//                 text: " ←: " + keybind.outof;
-//             }
-//
-//             Text {
-//                 text: " →: " + keybind.into;
-//             }
-//
-//             Text {
-//                 text: "Filter: " + keybind.find;
-//             }
-//
-//             Text {
-//                 text: "Reset Filter: " + keybind.quit;
-//             }
-//         }
-//     }
-//
-//     GridLayout {
-//         width: root.width;
-//         height: root.height;
-//         visible: move_file_visible;
-//         opacity: move_file_visible ? 1 : 0;
-//         animate opacity { duration: 250ms; }
-//         Row {
-//             Rectangle {
-//                 drop-shadow-color: rgba(0,0,0,0.5);
-//                 drop-shadow-blur: 2px;
-//                 FocusScope {
-//                     key-pressed(event) => {
-//                         if (event.text == keybind.esc) {
-//                             self.clear-focus();
-//                             child.focus();
-//                             move_file_visible = false;
-//                             accept
-//                         } else {
-//                             reject
-//                         }
-//                     }
-//                     VerticalLayout {
-//                         alignment: center;
-//                         HorizontalLayout {
-//                             alignment: center;
-//                             Text {
-//                                 text: "Rename / Move " + selected_file + " to: ";
-//                             }
-//
-//                             move-file := TextInput {
-//                                 text: move_file_name;
-//
-//                                 accepted => {
-//                                     move(self.text);
-//                                     self.clear-focus();
-//                                     mainfocus(true);
-//                                     move_file_visible = false;
-//                                     refresh();
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//
-//     GridLayout {
-//         width: root.width;
-//         height: root.height;
-//         visible: new_file_visible;
-//         opacity: new_file_visible ? 1 : 0;
-//         animate opacity { duration: 250ms; }
-//         Row {
-//             Rectangle {
-//                 drop-shadow-color: rgba(0,0,0,0.5);
-//                 drop-shadow-blur: 2px;
-//                 FocusScope {
-//                     key-pressed(event) => {
-//                         if (event.text == keybind.esc) {
-//                             self.clear-focus();
-//                             child.focus();
-//                             new_file_visible = false;
-//                             accept
-//                         } else {
-//                             reject
-//                         }
-//                     }
-//                     VerticalLayout {
-//                         alignment: center;
-//                         HorizontalLayout {
-//                             alignment: center;
-//                             Text {
-//                                 text: "New File Name: ";
-//                             }
-//
-//                             new-file := TextInput {
-//                                 text: new_file_name;
-//
-//                                 accepted => {
-//                                     create(self.text);
-//                                     self.clear-focus();
-//                                     mainfocus(true);
-//                                     new_file_visible = false;
-//                                     refresh();
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//
-//     deletion-focus := FocusScope {
-//         key-pressed(event) => {
-//             if (event.text == keybind.esc) {
-//                 self.clear-focus();
-//                 child.focus();
-//                 delete_file_visible = false;
-//                 accept
-//             } else if (event.text == "y") {
-//                 delete(delete_file_name);
-//                 child.focus();
-//                 delete_file_visible = false;
-//                 refresh();
-//                 accept
-//             } else if (event.text == "n") {
-//                 self.clear-focus();
-//                 delete_file_visible = false;
-//                 child.focus();
-//                 accept
-//             } else {
-//                 reject
-//             }
-//         }
-//         GridLayout {
-//             width: root.width;
-//             height: root.height;
-//             visible: delete_file_visible;
-//             forward-focus: deletion-focus;
-//             opacity: delete_file_visible ? 1 : 0;
-//             animate opacity { duration: 250ms; }
-//
-//             Row {
-//                 Rectangle {
-//                     drop-shadow-color: rgba(0,0,0,0.5);
-//                     drop-shadow-blur: 2px;
-//                     forward-focus: deletion-focus;
-//
-//                     VerticalLayout {
-//                         alignment: center;
-//                         HorizontalLayout {
-//                             alignment: center;
-//                             width: root.width;
-//
-//                             delete-file := Dialog {
-//                                 width: root.width;
-//                                 VerticalLayout {
-//                                     forward-focus: deletion-focus;
-//                                     Text {
-//                                         text: "Are you sure you want to delete: " + delete_file_name;
-//                                     }
-//
-//                                     StandardButton {
-//                                         width: 80px;
-//                                         kind: yes;
-//                                         clicked => {
-//                                             delete(delete_file_name);
-//                                             delete_file_visible = false;
-//                                             refresh();
-//                                         }
-//                                     }
-//
-//                                     StandardButton {
-//                                         width: 80px;
-//                                         kind: no;
-//                                         clicked => {
-//                                             delete_file_visible = false;
-//                                         }
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
