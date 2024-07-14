@@ -1,360 +1,135 @@
-mod file_move;
-mod keyevents;
-use std::path::PathBuf;
-use std::process::Command;
-use std::{env, fs, usize};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use file_move::{
-    create_file, delete_file, get_current_folder, get_folders_list, get_root_dir_files, rename_file,
+use std::{
+    fs::{self, read_dir},
+    path::PathBuf,
 };
-use keyevents::get_last_path;
-use slint::{Model, ModelRc, SharedString, StandardListViewItem, VecModel};
 
-const _APP_ID: &str = "de.wipdesign.scout";
-const _APP_NAME: &str = "Scout";
-const _APP_VERSION: &str = "0.0.1";
+use eframe::egui;
+use egui::ScrollArea;
+use egui_code_editor::{CodeEditor, Syntax};
 
-slint::include_modules!();
+#[derive(Clone)]
+pub struct ItemElement {
+    name: String,
+    path: PathBuf,
+    dir: bool,
+}
 
-fn main() -> Result<(), slint::PlatformError> {
-    // Constants
-    let window = AppWindow::new()?;
-    let ui = window.as_weak().clone();
-    let mainui = window.as_weak().clone();
+pub fn get_root_dir_files(dir: PathBuf) -> Vec<ItemElement> {
+    let mut file: Vec<ItemElement> = read_dir(dir)
+        .expect("Fail")
+        .enumerate()
+        .filter_map(|(_index, entry)| {
+            entry.ok().and_then(|en| {
+                Some(ItemElement {
+                    name: en.file_name().into_string().expect("No file name found"),
+                    path: en.path(),
+                    dir: en.path().is_dir(),
+                })
+            })
+        })
+        .collect();
 
-    // Set defaults
-    let current_path = get_current_folder();
+        file.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-    ui.unwrap().set_last_path(SharedString::from(
-        current_path.clone().into_os_string().into_string().unwrap(),
-    ));
+    return file;
+}
 
-    let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(current_path.clone())));
-
-    let mut ii: Vec<ScoutItem> = vec![];
-
-    for i in files_list.iter() {
-        let it = StandardListViewItem::from(i.text);
-        let item = ScoutItem {
-            path: current_path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap()
-                .into(),
-            viewItem: it,
-        };
-        ii.push(item)
+fn get_content(target: PathBuf) -> String {
+    let mut files_list: Vec<String> = vec![];
+    if target.is_file() {
+        fs::read_to_string(target.clone()).expect("Failed to Read file")
+    } else {
+        let items = get_root_dir_files(target);
+        for i in items {
+            files_list.push(i.name)
+        }
+        return files_list.join("\n");
     }
+}
 
-    set_child(ui.unwrap(), files_list.clone());
+fn main() -> eframe::Result {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+                        //
+    let current_folder = "/home/eko";
+    let mut files = get_root_dir_files(current_folder.into());
 
-    let mut depth = 1;
-
-    // Handle Interaction
-    ui.unwrap().invoke_mainfocus(true);
-
-    let keybinds: keybinds = keybinds {
-        up: SharedString::from("k"),
-        down: SharedString::from("j"),
-        into: SharedString::from("l"),
-        outof: SharedString::from("h"),
-        find: SharedString::from("f"),
-        quit: SharedString::from("q"),
-        esc: SharedString::from("\u{1b}"),
-        delete: SharedString::from("d"),
-        add: SharedString::from("a"),
-        search: SharedString::from("p"),
-        moving: SharedString::from("m"),
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
+        ..Default::default()
     };
 
-    ui.unwrap().set_keybind(keybinds.clone());
+    // Our application state:
+    let mut selected_element_index = 2;
+    let mut selected_element: ItemElement = ItemElement {
+        name: "".into(),
+        path: PathBuf::from(""),
+        dir: false,
+    };
+    let mut content = String::new();
+    let mut history: Vec<PathBuf> = vec!["/home/eko".into()];
 
-    mainui.unwrap().on_refresh(move || {
-        let h = mainui.unwrap().get_last_path();
-        let files_list = slint::ModelRc::new(VecModel::from(get_root_dir_files(PathBuf::from(
-            h.to_string(),
-        ))));
+    eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading(current_folder);
 
-        let mut ii = vec![];
+            // Moving out of directory
+            let back_button = ui.button("<");
+            if back_button.clicked() {
+                let h = &history[history.len() - 2].clone();
+                history.push(h.to_path_buf());
+                files = get_root_dir_files(PathBuf::from(h));
+            }
 
-        for i in files_list.iter() {
-            let it = StandardListViewItem::from(i.text);
-            ii.push(it);
-        }
-        set_child(mainui.unwrap(), files_list.clone());
-    });
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    let vh = ctx.input(|i| i.screen_rect().y_range());
+                    let vh_with_padding = vh.max - 20.0;
+                    ui.set_height(vh_with_padding);
 
-    let findui = window.as_weak().clone();
-    findui.unwrap().on_find(move || {
-        findui.unwrap().set_position(pos { x: 0, y: 0 });
-        let parent_path = findui.unwrap().get_last_path();
-        let pathbuf: PathBuf = parent_path.to_string().into();
+                    // Current folder view
+                    ScrollArea::vertical().max_height(vh_with_padding - 20.0).show(ui, |ui| {
+                        for (index, item) in files.clone().iter().enumerate() {
+                            let i =
+                                ui.selectable_label(index == selected_element_index, &item.name);
+                            if i.double_clicked() {
+                                history.push(item.clone().path);
+                                println!("Got into {:?}", item.path);
+                                files = get_root_dir_files(item.clone().path);
+                            } else if i.clicked() {
+                                selected_element = item.clone();
+                                selected_element_index = index;
+                                content = get_content(item.clone().path)
+                            }
+                        }
+                    });
+                });
 
-        let mut ii = vec![];
-        let current_dir = fs::read_dir(pathbuf).unwrap();
-
-        let f = findui.unwrap().get_find_value().to_string();
-
-        for name in current_dir {
-            let name = name.unwrap().path();
-            if name.to_str().is_some() {
-                if name
-                    .to_str()
-                    .expect("Not a thing to add to find")
-                    .contains(&f)
-                {
-                    if name.file_name().is_some() {
-                        let shared_string = SharedString::from(
-                            name.file_name().expect("No File Name").to_str().unwrap(),
-                        );
-                        let it = StandardListViewItem::from(shared_string);
-                        ii.push(it);
+                ui.vertical(|ui| {
+                    // Selected Content view
+                    if selected_element.dir {
+                        CodeEditor::default()
+                            .id_source("code_editor")
+                            .with_rows(12)
+                            .with_fontsize(12.0)
+                            .with_syntax(Syntax::default())
+                            .with_numlines(false)
+                            .show(ui, &mut content)
+                    } else {
+                        CodeEditor::default()
+                            .id_source("code_editor")
+                            .with_rows(12)
+                            .with_fontsize(12.0)
+                            .with_syntax(Syntax::rust())
+                            .with_numlines(true)
+                            .show(ui, &mut content)
                     }
-                }
-            }
-        }
+                });
+            });
 
-        let cfs = ModelRc::new(VecModel::from(ii.clone()));
-        findui.unwrap().set_child_files_standard(cfs);
-    });
-
-    let deleteui = window.as_weak();
-    deleteui.unwrap().on_delete(move |value| {
-        deleteui
-            .unwrap()
-            .invoke_deletefocus(delete_file(value.to_string().into()))
-    });
-
-    let addui = window.as_weak();
-    addui.unwrap().on_create(move |value| {
-        create_file(
-            addui.unwrap().get_last_path().to_string().into(),
-            value.into(),
-        )
-    });
-
-    let moveui = window.as_weak();
-    moveui.unwrap().on_move(move |value| {
-        let path = PathBuf::from(moveui.unwrap().get_last_path().to_string());
-        let mut target = path.clone();
-        let selection = moveui
-            .unwrap()
-            .get_child_files_standard()
-            .row_data(moveui.unwrap().get_child_pos() as usize);
-
-        target.push(selection.unwrap().text.to_string());
-        rename_file(target, value.into())
-    });
-
-    ui.unwrap().on_key_presed(move |key_event| {
-        let key = key_event.clone().text;
-        if !ui.unwrap().get_find_box_focus() {
-            if key == keybinds.moving {
-                let mut last_path = get_last_path(ui.clone());
-                let target = last_path.clone();
-                let selection = ui
-                    .unwrap()
-                    .get_child_files_standard()
-                    .row_data(ui.unwrap().get_child_pos() as usize);
-
-                ui.unwrap()
-                    .set_selected_file(selection.clone().unwrap().text);
-
-                last_path.push(selection.unwrap().text.to_string());
-
-                ui.unwrap()
-                    .set_move_file_name(SharedString::from(target.to_str().unwrap()));
-
-                ui.unwrap().set_move_file_visible(true);
-                // ui.unwrap().invoke_movefilefocus(true);
-                ui.unwrap().invoke_mainfocus(false);
-            } else if key == keybinds.esc {
-                ui.unwrap().invoke_findboxfocus(false);
-                ui.unwrap().invoke_mainfocus(true);
-            } else if key == keybinds.delete {
-                let me = ui.unwrap();
-                me.invoke_mainfocus(false);
-                let current_path = me.get_last_path();
-                let mut path: PathBuf = PathBuf::from(current_path.to_string());
-
-                let data = me
-                    .get_child_files_standard()
-                    .row_data(me.get_child_pos() as usize)
-                    .unwrap();
-
-                path.push(data.text.to_string());
-                let file_name = path.to_str();
-                me.set_delete_file_name(SharedString::from(file_name.unwrap()));
-                me.set_delete_file_visible(true);
-                me.invoke_deletefocus(true)
-            } else if key == keybinds.add {
-                ui.unwrap().set_new_file_visible(true);
-                // ui.unwrap().invoke_newfilefocus(true);
-                ui.unwrap().invoke_mainfocus(false);
-            } else if key == keybinds.up {
-                move_y(ui.unwrap(), "up".to_string());
-                let viewport_y = ui.unwrap().get_child_viewport_y();
-                if viewport_y < 0.0 {
-                    ui.unwrap().invoke_scroll("up".into());
-                }
-            } else if key == keybinds.down {
-                let visible_height = ui.unwrap().get_child_visible_height();
-                let position = ui.unwrap().get_child_pos();
-
-                if (position as f32 * 25.0) > visible_height / 2.0 {
-                    ui.unwrap().invoke_scroll("down".into());
-                }
-
-                move_y(ui.unwrap(), "down".to_string())
-            } else if key == keybinds.quit {
-                set_child(ui.unwrap(), files_list.clone());
-                ui.unwrap().set_position(pos { x: 0, y: 0 });
-            } else if key == keybinds.find {
-                ui.unwrap().invoke_findboxfocus(true);
-                ui.unwrap().invoke_mainfocus(false);
-            } else if key == keybinds.outof {
-                let (y, x, _) = move_out(ui.unwrap(), depth);
-                let new_pos = pos { x, y };
-                ui.unwrap().set_position(new_pos);
-            } else if key == keybinds.into {
-                let (y, x, d) = move_in(ui.unwrap(), depth);
-                let new_pos = pos { x, y };
-                ui.unwrap().set_position(new_pos);
-                depth = d;
-            }
-        } else if key == keybinds.esc {
-            ui.unwrap().invoke_findboxfocus(false);
-            ui.unwrap().invoke_mainfocus(true)
-        } else {
-            return;
-        }
-    });
-
-    // Startup
-    window.run()
-}
-
-fn set_child(ui: AppWindow, files_list: ModelRc<StandardListViewItem>) {
-    let mut ii = vec![];
-
-    for i in files_list.iter() {
-        let it = StandardListViewItem::from(i.text);
-        ii.push(it);
-    }
-    let cfs = ModelRc::new(VecModel::from(ii.clone()));
-
-    ui.set_child_files_standard(cfs.clone());
-}
-
-fn move_y(ui: AppWindow, dir: String) {
-    let mut current_position = ui.get_position().clone();
-
-    if dir == "up" && ui.get_child_pos() > 0 {
-        current_position.y -= 1;
-    } else if dir == "down"
-        && ((ui.get_child_pos() + 1) as usize) < ui.get_child_files_standard().iter().len()
-    {
-        current_position.y += 1;
-    }
-    ui.set_position(pos {
-        x: current_position.x,
-        y: current_position.y,
+            // ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+        });
     })
-}
-
-fn open_file(ui: AppWindow, depth: i32, target: PathBuf) -> (i32, i32, i32) {
-    let new_path_ext = target
-        .extension()
-        .expect(&format!("Failed to read extension of: {:?}", target));
-    let ext = new_path_ext;
-    let ext_str = ext.to_str();
-    match ext_str {
-        Some("lua") => {
-            Command::new("wezterm")
-                .arg("start")
-                .arg("nvim")
-                .arg(&target)
-                .status()
-                .expect("Failed to open");
-        }
-        Some("") => {
-            Command::new("wezterm")
-                .arg("start")
-                .arg("nvim")
-                .arg(&target)
-                .status()
-                .expect("Failed to open");
-        }
-        _ => {
-            if fs::read_to_string(target.clone()).is_ok() {
-                let c = fs::read_to_string(target.clone()).expect("Failed to Read file");
-
-                let content = SharedString::from(c);
-
-                ui.set_content_of_file(content)
-            }
-        }
-    }
-    return (ui.get_position().y, ui.get_position().x, depth);
-}
-
-fn cant_open(ui: AppWindow, target: PathBuf) -> (i32, i32, i32) {
-    if fs::read_to_string(target.clone()).is_ok() {
-        let c = fs::read_to_string(target.clone()).expect("Failed to Read file");
-
-        let content = SharedString::from(c);
-
-        ui.set_content_of_file(content);
-    }
-    return (0, 0, 0);
-}
-
-fn move_in(ui: AppWindow, depth: i32) -> (i32, i32, i32) {
-    let active_path = ui.get_last_path().to_string();
-    let mut new_path: PathBuf = PathBuf::new();
-    new_path.push(active_path);
-
-    let data = ui
-        .get_child_files_standard()
-        .row_data(ui.get_child_pos() as usize);
-    let name = Some(data).unwrap_or_default();
-    new_path.push(name.unwrap().text.to_string());
-    println!("{:?}", new_path);
-
-    if new_path.is_dir() {
-        let files_list = get_folders_list(new_path.clone());
-
-        set_child(ui.clone_strong(), files_list);
-
-        ui.set_last_path(SharedString::from(
-            new_path.clone().into_os_string().into_string().unwrap(),
-        ));
-
-        return (0, 0, depth + 1);
-    } else if fs::read_to_string(new_path.clone()).is_ok() {
-        // if new_path.extension().is_some() {
-        return open_file(ui, depth, new_path);
-    } else {
-        return cant_open(ui, new_path);
-    }
-}
-
-fn move_out(ui: AppWindow, depth: i32) -> (i32, i32, i32) {
-    let last_path_string = ui.get_last_path();
-    let mut last_path: PathBuf = PathBuf::from(last_path_string.clone().to_string());
-
-    last_path.pop();
-
-    if last_path.is_dir() {
-        let files_list = get_folders_list(last_path.clone());
-        ui.as_weak().unwrap().set_last_path(SharedString::from(
-            last_path.clone().into_os_string().into_string().unwrap(),
-        ));
-
-        set_child(ui, files_list);
-        return (0, 0, depth - 1);
-    } else {
-        return (ui.get_position().y, ui.get_position().x, depth);
-    }
 }
