@@ -12,6 +12,7 @@ egui_code_editor = "0.2.9"
 egui_extras = "0.28.1"
 egui_plot = "0.28.1"
 env_logger = "0.11.3"
+simdutf8 = "0.1.4"
 # slint = { version = "1.6"}
 # gtk4 = { version = "0.4" }
 # qt_core = { version = "0.5.0" }
