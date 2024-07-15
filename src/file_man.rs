@@ -2,8 +2,6 @@ use std::{fs::{self, read_dir, File}, io::{self, BufReader, Read, Write}, path::
 
 use crate::ItemElement;
 
-
-
 pub fn get_root_dir_files(dir: PathBuf) -> Vec<ItemElement> {
     let mut file: Vec<ItemElement> = read_dir(dir)
         .expect("Fail")

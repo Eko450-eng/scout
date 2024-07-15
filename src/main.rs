@@ -3,7 +3,7 @@
 
 mod file_man;
 mod types;
-use std::{path::PathBuf, usize};
+use std::{ffi::OsString, path::PathBuf, usize};
 
 use eframe::{egui, App};
 use egui::{popup_below_widget, Id, PopupCloseBehavior, ScrollArea};
@@ -43,6 +43,14 @@ impl Default for FilesApp {
     }
 }
 
+fn action_rename(selected_element: ItemElement) {
+    if false == true {
+        rename_file(selected_element.path.clone(), "test".to_string())
+    } else {
+        println!("This feature is currently disabled")
+    }
+}
+
 impl App for FilesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut text = self.selected_element.path.to_string_lossy().to_string();
@@ -56,6 +64,7 @@ impl App for FilesApp {
             ui.heading(heading);
 
             let keybinds = KeyBinds {
+                preview: egui::Key::P,
                 create: egui::Key::A,
                 delete: egui::Key::D,
                 rename: egui::Key::R,
@@ -87,18 +96,13 @@ impl App for FilesApp {
 
                     match self.app_mode {
                         Modes::Action => {
-                            if ui.input(|i| i.key_pressed(keybinds.create)) {
+                            if ui.input(|i| i.key_pressed(keybinds.preview)) {
+                                self.preview = !self.preview;
+                            } else if ui.input(|i| i.key_pressed(keybinds.create)) {
                                 self.app_mode = Modes::Creation
                             } else if ui.input(|i| i.key_pressed(keybinds.delete)) {
                             } else if ui.input(|i| i.key_pressed(keybinds.rename)) {
-                                if false == true {
-                                    rename_file(
-                                        self.selected_element.path.clone(),
-                                        "test".to_string(),
-                                    )
-                                } else {
-                                    println!("This feature is currently disabled")
-                                }
+                                action_rename(self.selected_element.clone())
                             } else if ui.input(|i| {
                                 i.key_pressed(keybinds.move_down)
                                     && self.selected_element_index < self.files.len() - 1
@@ -122,11 +126,6 @@ impl App for FilesApp {
                                         self.files[self.selected_element_index].clone().path,
                                     );
                                 }
-                                println!(
-                                    "I: {:?} \nF: {:?}",
-                                    self.selected_element_index,
-                                    self.files.len()
-                                );
                             } else if ui.input(|i| i.key_pressed(keybinds.move_out)) {
                                 let h = &self.history[self.history.len() - 2].clone();
                                 self.history.push(h.to_path_buf());
@@ -137,17 +136,22 @@ impl App for FilesApp {
                             }) {
                                 let item = self.files[self.selected_element_index].clone();
 
+                                let image_ext = "png";
+                                let os_string: OsString = OsString::from(image_ext);
+
                                 if item.path.is_dir() {
                                     self.history.push(item.clone().path);
                                     self.files = get_root_dir_files(item.clone().path);
+                                    self.selected_element_index = 0;
                                 } else {
                                     self.selected_element =
                                         self.files[self.selected_element_index].clone();
-                                    self.content = get_content(
-                                        self.files[self.selected_element_index].clone().path,
-                                    );
+                                    if item.path.extension() != Some(&os_string) {
+                                        self.content = get_content(
+                                            self.files[self.selected_element_index].clone().path,
+                                        );
+                                    }
                                 }
-                                self.selected_element_index = 0;
                             };
                         }
                         Modes::Creation => {
@@ -156,7 +160,6 @@ impl App for FilesApp {
                                 path.pop();
 
                                 add_file(path, text.clone());
-                                println!("CREATED: {:?}", text)
                             } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                                 self.app_mode = Modes::Action
                             }
@@ -181,7 +184,7 @@ impl App for FilesApp {
                         PopupCloseBehavior::CloseOnClickOutside,
                         |ui| {
                             ui.set_min_width(300.0);
-                            ui.label("This popup will be open even if you click the checkbox");
+                            ui.label("Create a new File or Folder(s)");
                             ui.text_edit_singleline(&mut text);
                         },
                     );
@@ -200,7 +203,6 @@ impl App for FilesApp {
                                 );
                                 if i.double_clicked() {
                                     self.history.push(item.clone().path);
-                                    println!("Got into {:?}", item.path);
                                     self.files = get_root_dir_files(item.clone().path);
                                 } else if i.clicked() {
                                     self.selected_element = item.clone();
@@ -232,23 +234,18 @@ impl App for FilesApp {
                     }
                 });
             });
-
-            // ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
         });
     }
 }
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-                        //
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([300.0, 200.0]),
         ..Default::default()
     };
 
-    // Our application state:
-
-    //eframe::run_simple_native("My egui App", options, move |ctx, _frame| { });
     eframe::run_native(
         "Scout",
         options,

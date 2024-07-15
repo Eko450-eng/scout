@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 pub struct KeyBinds {
+    pub preview: egui::Key,
     pub create: egui::Key,
     pub delete: egui::Key,
     pub rename: egui::Key,
