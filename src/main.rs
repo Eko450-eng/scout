@@ -1,237 +1,80 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+mod add_file_popup;
 mod file_man;
+mod key_actions;
+mod main_view;
+mod movement_actions;
+mod navigation_bar;
+mod previewer;
+mod search_file_popup;
 mod types;
-use std::{ffi::OsString, path::PathBuf, usize};
+mod utils;
 
+use add_file_popup::add_file_popup;
 use eframe::{egui, App};
-use egui::{popup_below_widget, Id, PopupCloseBehavior, ScrollArea};
-use egui_code_editor::{CodeEditor, Syntax};
-use file_man::{add_file, get_content, get_root_dir_files, rename_file};
-use types::{ItemElement, KeyBinds, Modes};
-
-pub struct FilesApp {
-    selected_element_index: usize,
-    selected_element: ItemElement,
-
-    files: Vec<ItemElement>,
-    preview: bool,
-
-    content: String,
-    history: Vec<PathBuf>,
-
-    app_mode: Modes,
-}
-
-impl Default for FilesApp {
-    fn default() -> Self {
-        let current_folder = "/home/eko";
-        let files = get_root_dir_files(current_folder.into());
-        Self {
-            selected_element_index: 0,
-            selected_element: files[0].clone(),
-
-            files,
-            preview: false,
-
-            content: String::new(),
-            history: vec![current_folder.into()],
-
-            app_mode: Modes::Action,
-        }
-    }
-}
-
-fn action_rename(selected_element: ItemElement) {
-    if false == true {
-        rename_file(selected_element.path.clone(), "test".to_string())
-    } else {
-        println!("This feature is currently disabled")
-    }
-}
+use egui::{Align, Layout};
+use key_actions::{handle_key_action, handle_key_creation, handle_key_search};
+use main_view::main_view;
+use navigation_bar::navigation_bar;
+use previewer::{show_dir, show_image, show_preview};
+use search_file_popup::search_file_popup;
+use types::{FilesApp, ItemElement, Modes};
 
 impl App for FilesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let mut text = self.selected_element.path.to_string_lossy().to_string();
+        egui_extras::install_image_loaders(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            let heading;
-            match self.app_mode {
-                Modes::Action => heading = "Action",
-                Modes::Editing => heading = "Editing",
-                Modes::Creation => heading = "Creation",
-            }
-            ui.heading(heading);
+            let mode_display;
+            add_file_popup(ctx.clone(), self);
+            search_file_popup(ctx.clone(), self);
 
-            let keybinds = KeyBinds {
-                preview: egui::Key::P,
-                create: egui::Key::A,
-                delete: egui::Key::D,
-                rename: egui::Key::R,
-                move_in: egui::Key::L,
-                move_out: egui::Key::H,
-                move_up: egui::Key::K,
-                move_down: egui::Key::J,
+            match self.app_mode {
+                Modes::Action => mode_display = "Action",
+                Modes::Editing => mode_display = "Editing",
+                Modes::Creation => mode_display = "Creation",
+                Modes::Search => mode_display = "Search",
+            }
+
+            navigation_bar(ui, self);
+
+            // Key events
+            match self.app_mode {
+                Modes::Action => handle_key_action(self, ui),
+                Modes::Creation => handle_key_creation(self, ui),
+                Modes::Search => handle_key_search(self, ui),
+                Modes::Editing => (),
             };
 
-            // Moving out of directory
-            let back_button = ui.button("<");
-            if back_button.clicked() {
-                let h = &self.history[self.history.len() - 2].clone();
-                self.history.push(h.to_path_buf());
-                self.files = get_root_dir_files(PathBuf::from(h));
-            }
-
-            let response = ui.button("Open");
-
+            let vh = ctx.input(|i| i.screen_rect().y_range());
             ui.horizontal(|ui| {
+                ui.set_height(vh.max - 100.0);
                 ui.vertical(|ui| {
-                    if ui.input(|i| i.key_pressed(egui::Key::I)) {
-                        match self.app_mode {
-                            Modes::Action => self.app_mode = Modes::Editing,
-                            Modes::Editing => self.app_mode = Modes::Creation,
-                            Modes::Creation => self.app_mode = Modes::Action,
-                        }
-                    }
+                    ui.set_height(vh.max - 200.0);
 
-                    match self.app_mode {
-                        Modes::Action => {
-                            if ui.input(|i| i.key_pressed(keybinds.preview)) {
-                                self.preview = !self.preview;
-                            } else if ui.input(|i| i.key_pressed(keybinds.create)) {
-                                self.app_mode = Modes::Creation
-                            } else if ui.input(|i| i.key_pressed(keybinds.delete)) {
-                            } else if ui.input(|i| i.key_pressed(keybinds.rename)) {
-                                action_rename(self.selected_element.clone())
-                            } else if ui.input(|i| {
-                                i.key_pressed(keybinds.move_down)
-                                    && self.selected_element_index < self.files.len() - 1
-                            }) {
-                                self.selected_element_index = self.selected_element_index + 1;
-                                self.selected_element =
-                                    self.files[self.selected_element_index].clone();
-                                if self.preview {
-                                    self.content = get_content(
-                                        self.files[self.selected_element_index].clone().path,
-                                    );
-                                }
-                            } else if ui.input(|i| i.key_pressed(keybinds.move_up))
-                                && self.selected_element_index > 0
-                            {
-                                self.selected_element_index = self.selected_element_index - 1;
-                                self.selected_element =
-                                    self.files[self.selected_element_index].clone();
-                                if self.preview {
-                                    self.content = get_content(
-                                        self.files[self.selected_element_index].clone().path,
-                                    );
-                                }
-                            } else if ui.input(|i| i.key_pressed(keybinds.move_out)) {
-                                let h = &self.history[self.history.len() - 2].clone();
-                                self.history.push(h.to_path_buf());
-                                self.files = get_root_dir_files(PathBuf::from(h));
-                                self.selected_element_index = 0;
-                            } else if ui.input(|i| {
-                                (i.key_pressed(egui::Key::Enter)) || i.key_pressed(keybinds.move_in)
-                            }) {
-                                let item = self.files[self.selected_element_index].clone();
-
-                                let image_ext = "png";
-                                let os_string: OsString = OsString::from(image_ext);
-
-                                if item.path.is_dir() {
-                                    self.history.push(item.clone().path);
-                                    self.files = get_root_dir_files(item.clone().path);
-                                    self.selected_element_index = 0;
-                                } else {
-                                    self.selected_element =
-                                        self.files[self.selected_element_index].clone();
-                                    if item.path.extension() != Some(&os_string) {
-                                        self.content = get_content(
-                                            self.files[self.selected_element_index].clone().path,
-                                        );
-                                    }
-                                }
-                            };
-                        }
-                        Modes::Creation => {
-                            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                                let mut path = self.selected_element.clone().path;
-                                path.pop();
-
-                                add_file(path, text.clone());
-                            } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                                self.app_mode = Modes::Action
-                            }
-                        }
-                        _ => {
-                            if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                                println!("New Text: {:?}", self.content)
-                            }
-                        }
-                    };
-
-                    let popup_id = Id::new("popup_id");
-
-                    if response.clicked() {
-                        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-                        self.app_mode = Modes::Creation
-                    }
-                    popup_below_widget(
-                        ui,
-                        popup_id,
-                        &response,
-                        PopupCloseBehavior::CloseOnClickOutside,
-                        |ui| {
-                            ui.set_min_width(300.0);
-                            ui.label("Create a new File or Folder(s)");
-                            ui.text_edit_singleline(&mut text);
-                        },
-                    );
-
-                    let vh = ctx.input(|i| i.screen_rect().y_range());
-                    ui.set_height(vh.max - 100.0);
-
-                    // Current folder view
-                    ScrollArea::vertical()
-                        // .max_height(vh_with_padding - 50.0)
-                        .show(ui, |ui| {
-                            for (index, item) in self.files.clone().iter().enumerate() {
-                                let i = ui.selectable_label(
-                                    index == self.selected_element_index,
-                                    &item.name,
-                                );
-                                if i.double_clicked() {
-                                    self.history.push(item.clone().path);
-                                    self.files = get_root_dir_files(item.clone().path);
-                                } else if i.clicked() {
-                                    self.selected_element = item.clone();
-                                    self.selected_element_index = index;
-                                    self.content = get_content(item.clone().path)
-                                }
-                            }
-                        });
+                    main_view(ui, self);
                 });
 
                 ui.vertical(|ui| {
-                    // Selected Content view
-                    if self.selected_element.dir {
-                        CodeEditor::default()
-                            .id_source("code_editor")
-                            .with_rows(12)
-                            .with_fontsize(12.0)
-                            .with_syntax(Syntax::default())
-                            .with_numlines(false)
-                            .show(ui, &mut self.content)
-                    } else {
-                        CodeEditor::default()
-                            .id_source("code_editor")
-                            .with_rows(12)
-                            .with_fontsize(12.0)
-                            .with_syntax(Syntax::rust())
-                            .with_numlines(true)
-                            .show(ui, &mut self.content)
-                    }
+                    ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                        if self.preview {
+                            match self.content.file_type {
+                                file_man::FileContentType::Dir => { show_dir(self, ui); },
+                                file_man::FileContentType::Txt => { show_preview(self, ui); },
+                                file_man::FileContentType::Image => { show_image(ctx.clone(), self, ui); },
+                                _=> {
+                                    if !self.content.read{
+                                        ui.label("Too big to Preview");
+                                    }
+                                }
+                            }
+                        }
+                        ui.with_layout(Layout::bottom_up(Align::RIGHT), |ui| {
+                            ui.spacing();
+                            ui.colored_label(egui::Color32::LIGHT_BLUE, mode_display);
+                        })
+                    })
                 });
             });
         });

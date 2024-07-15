@@ -1,8 +1,19 @@
-use std::{fs::{self, read_dir, File}, io::{self, BufReader, Read, Write}, path::{Path, PathBuf}};
+use std::{
+    ffi::OsStr,
+    fs::{self, read_dir, File},
+    io::{self, BufReader, Read, Write},
+    path::{Path, PathBuf},
+};
 
 use crate::ItemElement;
 
-pub fn get_root_dir_files(dir: PathBuf) -> Vec<ItemElement> {
+const MAX_SIZE: u64 = 1000;
+
+pub fn get_root_dir_files(
+    dir: PathBuf,
+    hide_hidden_files: bool,
+    search_string: String,
+) -> Vec<ItemElement> {
     let mut file: Vec<ItemElement> = read_dir(dir)
         .expect("Fail")
         .enumerate()
@@ -18,9 +29,32 @@ pub fn get_root_dir_files(dir: PathBuf) -> Vec<ItemElement> {
         .collect();
 
     file.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    file.retain(|item| !item.name.starts_with("."));
+    if hide_hidden_files {
+        file.retain(|item| !item.name.starts_with("."));
+    }
+    if search_string != "" {
+        if search_string.starts_with("!") {
+            let ss = &search_string[1..];
+            file.retain(|item| regex::Regex::new(&ss).unwrap().is_match(&item.name));
+        } else {
+            if contains_uppercase(&search_string) {
+                file.retain(|item| item.name.contains(&search_string));
+            } else {
+                file.retain(|item| item.name.to_lowercase().contains(&search_string));
+            }
+        }
+    }
 
     return file;
+}
+
+fn contains_uppercase(input: &str) -> bool {
+    for c in input.chars() {
+        if c.is_uppercase() {
+            return true;
+        }
+    }
+    false
 }
 
 pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
@@ -41,20 +75,62 @@ pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
     Ok(true)
 }
 
-pub fn get_content(target: PathBuf) -> String {
+pub enum FileContentType {
+    Dir,
+    Txt,
+    Image,
+    Binary,
+}
+
+pub struct FileContent {
+    pub content: String,
+    pub file_type: FileContentType,
+    pub read: bool,
+}
+
+pub fn get_content(target: PathBuf) -> FileContent {
     let mut files_list: Vec<String> = vec![];
-    if target.is_file() {
+    let mut file_size: u64 = 0;
+
+    let mut out = FileContent {
+        content: "".to_string(),
+        file_type: FileContentType::Dir,
+        read: true,
+    };
+
+    if target.clone().is_file() {
+        out.file_type = FileContentType::Txt;
+
+        if target.extension() == Some(OsStr::new("png")) {
+            out.file_type = FileContentType::Image
+        }
+
+        if let Ok(metadata) = fs::metadata(target.clone()) {
+            let m = metadata.len();
+            file_size = m;
+        }
+
         match is_utf8(target.clone()) {
-            Ok(true) => fs::read_to_string(target.clone()).expect("Failed to Read file"),
-            Ok(false) => "Hi".to_string(),
-            Err(_) => "Error".to_string(),
+            Ok(true) => {
+                if file_size > MAX_SIZE {
+                    out.read = false;
+                    out
+                } else {
+                    out.content = fs::read_to_string(target.clone()).expect("Failed to Read file");
+                    out
+                }
+            }
+            Ok(false) => out,
+            Err(_) => out,
         }
     } else {
-        let items = get_root_dir_files(target);
+        let items = get_root_dir_files(target, true, "".to_string());
         for i in items {
             files_list.push(i.name)
         }
-        return files_list.join("\n");
+        out.file_type = FileContentType::Dir;
+        out.content = files_list.join("\n");
+        return out;
     }
 }
 
@@ -66,10 +142,6 @@ pub fn rename_file(file: PathBuf, target_string: String) {
 
     let mut new_file_name = original_file_parent_location.clone();
     new_file_name.push(target_string);
-
-    println!("Original name: {:?}", original_file_name);
-    println!("Original location: {:?}", original_file_parent_location);
-    println!("New name: {:?}", new_file_name);
 
     match fs::rename(original_file_name.clone(), new_file_name.clone()) {
         Ok(_) => {
@@ -83,7 +155,6 @@ pub fn rename_file(file: PathBuf, target_string: String) {
         }
     }
 }
-
 
 pub fn add_file(target: PathBuf, name: String) {
     let content: &[u8] = b"";

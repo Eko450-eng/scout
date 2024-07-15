@@ -9,14 +9,15 @@ edition = "2021"
 eframe = "0.28.1"
 egui = "0.28.1"
 egui_code_editor = "0.2.9"
-egui_extras = "0.28.1"
-egui_plot = "0.28.1"
+egui_extras = {version="0.28.1", features= ["all_loaders"]}
+# egui_plot = "0.28.1"
 env_logger = "0.11.3"
-simdutf8 = "0.1.4"
+# simdutf8 = "0.1.4"
 image = { version = "0.24"}
-winit = "0.27"
-egui-winit = "0.18"
-x11-dl = "2.19"
+# winit = "0.27"
+# egui-winit = "0.18"
+# x11-dl = "2.19"
+regex = "1.10.5"
 # slint = { version = "1.6"}
 # gtk4 = { version = "0.4" }
 # qt_core = { version = "0.5.0" }
