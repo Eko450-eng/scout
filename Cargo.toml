@@ -14,12 +14,30 @@ egui_extras = {version="0.28.1", features= ["all_loaders"]}
 env_logger = "0.11.3"
 # simdutf8 = "0.1.4"
 image = { version = "0.24"}
+rayon = "1.10.0"
 # winit = "0.27"
 # egui-winit = "0.18"
 # x11-dl = "2.19"
 regex = "1.10.5"
+serde = "1.0.204"
+serde_json = "1.0.120"
+struct_iterable = "0.1.1"
 # slint = { version = "1.6"}
 # gtk4 = { version = "0.4" }
 # qt_core = { version = "0.5.0" }
 # [build-dependencies]
 # slint-build = { version = "1.6"}
+
+[profile.test.package]
+adler32.opt-level = 3
+crc32fast.opt-level = 3
+miniz_oxide.opt-level = 3
+png.opt-level = 3
+deflate.opt-level = 3
+
+[profile.dev.package]
+adler32.opt-level = 3
+crc32fast.opt-level = 3
+miniz_oxide.opt-level = 3
+png.opt-level = 3
+deflate.opt-level = 3

@@ -1,7 +1,8 @@
 use egui::{text_edit::TextEditOutput, Context, ScrollArea, Ui};
 use egui_code_editor::{CodeEditor, Syntax};
+use image::{imageops, GenericImageView};
 
-use crate::{file_man::get_root_dir_files, types::FilesApp};
+use crate::types::FilesApp;
 
 pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<TextEditOutput> {
     ui.vertical(|ui| {
@@ -10,13 +11,16 @@ pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<Text
             .with_rows(12)
             .with_fontsize(12.0)
             .with_syntax(Syntax::default())
-            .with_numlines(false)
+            .with_syntax(Syntax::shell())
+            .with_syntax(Syntax::sql())
+            .with_syntax(Syntax::rust())
+            .with_numlines(true)
             .show(ui, &mut app.content.content)
     })
 }
 
 pub fn show_dir(app: &mut FilesApp, ui: &mut Ui) {
-    let content = app.content.content.clone();
+    // let content = app.content.content.clone();
     //let count = content.chars().filter(|&c| c == '\n').count();
 
     ScrollArea::vertical().show(ui, |ui| {
@@ -24,18 +28,49 @@ pub fn show_dir(app: &mut FilesApp, ui: &mut Ui) {
     });
 }
 
+fn load_image(app: &mut FilesApp) -> Result<image::DynamicImage, image::ImageError> {
+    let image =
+        image::io::Reader::open(app.selected_element.clone().path).expect("Error Decoding Image");
+
+    match image.decode() {
+        Ok(image) => {
+            let target_height = 400;
+            let (orig_width, orig_height) = image.dimensions();
+            let aspect_ratio = orig_width as f32 / orig_height as f32;
+            let target_width = (target_height as f32 * aspect_ratio).round() as u32;
+
+            let resized_image =
+                image.resize(target_width, target_height, imageops::FilterType::Nearest);
+            Ok(resized_image)
+        }
+        Err(e) => {
+            println!("Could not load because: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+// TODO: Fucking unusable laggy shit af
 pub fn show_image(ctx: Context, app: &mut FilesApp, ui: &mut Ui) {
-    // let uri = "file://".to_string() + &app.selected_element.path.to_string_lossy().to_string();
-    let image = image::io::Reader::open(app.selected_element.clone().path)
-        .unwrap()
-        .decode()
-        .unwrap();
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    let img = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+    if !app.preview {
+        return;
+    }
 
-    let texture = ctx.load_texture("img", img, egui::TextureOptions::default());
+    match load_image(app) {
+        Ok(image) => {
+            let size = [image.width() as _, image.height() as _];
 
-    ui.image((texture.id(), texture.size_vec2()));
+            let image_buffer = image.to_rgba8();
+            let pixels = image_buffer.as_flat_samples();
+
+            let img = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+
+            let texture = ctx.load_texture("img", img, egui::TextureOptions::default());
+
+            ui.image((texture.id(), texture.size_vec2()));
+        }
+        Err(e) => {
+            println!("error -- {:?}", e)
+        }
+    }
 }

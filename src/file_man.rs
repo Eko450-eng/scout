@@ -1,11 +1,11 @@
 use std::{
-    ffi::OsStr,
+    ffi::OsString,
     fs::{self, read_dir, File},
     io::{self, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
 
-use crate::ItemElement;
+use crate::{types::FilesApp, ItemElement};
 
 const MAX_SIZE: u64 = 1000;
 
@@ -35,7 +35,11 @@ pub fn get_root_dir_files(
     if search_string != "" {
         if search_string.starts_with("!") {
             let ss = &search_string[1..];
-            file.retain(|item| regex::Regex::new(&ss).unwrap().is_match(&item.name));
+            file.retain(|item| {
+                regex::Regex::new(&ss)
+                    .expect("Can't create the regex")
+                    .is_match(&item.name)
+            });
         } else {
             if contains_uppercase(&search_string) {
                 file.retain(|item| item.name.contains(&search_string));
@@ -101,8 +105,23 @@ pub fn get_content(target: PathBuf) -> FileContent {
     if target.clone().is_file() {
         out.file_type = FileContentType::Txt;
 
-        if target.extension() == Some(OsStr::new("png")) {
-            out.file_type = FileContentType::Image
+        let image_ext: Vec<String> = vec![
+            "png".to_string(),
+            "jpg".to_string(),
+            "jpeg".to_string(),
+            "JPEG".to_string(),
+            "JPG".to_string(),
+        ];
+        let mut image_ext_osstring: Vec<OsString> = vec![];
+        for i in image_ext {
+            image_ext_osstring.push(OsString::from(i))
+        }
+
+        let ext = target.extension();
+        if ext.is_some() {
+            if image_ext_osstring.contains(&ext.unwrap().to_os_string()) {
+                out.file_type = FileContentType::Image
+            }
         }
 
         if let Ok(metadata) = fs::metadata(target.clone()) {
@@ -134,19 +153,16 @@ pub fn get_content(target: PathBuf) -> FileContent {
     }
 }
 
-pub fn rename_file(file: PathBuf, target_string: String) {
+pub fn rename_file(app: &mut FilesApp, file: PathBuf) {
     let original_file_name = file.clone();
 
     let mut original_file_parent_location = file.clone();
     original_file_parent_location.pop();
 
-    let mut new_file_name = original_file_parent_location.clone();
-    new_file_name.push(target_string);
+    let new_file_name = PathBuf::from(app.target.clone());
 
     match fs::rename(original_file_name.clone(), new_file_name.clone()) {
-        Ok(_) => {
-            println!("Moved from {:?} to {:?}", original_file_name, new_file_name)
-        }
+        Ok(_) => return,
         Err(err) => {
             println!(
                 "Could not Rename / Move from {:?} to {:?} because: {:?}",
@@ -163,13 +179,22 @@ pub fn add_file(target: PathBuf, name: String) {
         target_item.push(name.to_string());
 
         // Check wether it is a path or file name
-        if target_item.to_str().unwrap().contains("/") {
+        if target_item
+            .to_str()
+            .expect("Target item can't be converted to String")
+            .contains("/")
+        {
             let mut final_file_name: PathBuf = PathBuf::new();
             let mut create_file = false;
 
             // Check if last element is a file or still a path
             if !name.ends_with("/") {
-                final_file_name = name.clone().split("/").last().unwrap().into();
+                final_file_name = name
+                    .clone()
+                    .split("/")
+                    .last()
+                    .expect("Can't split into file name")
+                    .into();
                 target_item.pop();
                 create_file = true;
             }
@@ -183,7 +208,9 @@ pub fn add_file(target: PathBuf, name: String) {
                     target_item.push(final_file_name);
                     let file = File::create(target_item.clone());
                     if file.is_ok() {
-                        file.unwrap().write_all(content).unwrap();
+                        file.expect("Cannot open file to write to it")
+                            .write_all(content)
+                            .expect("Can't write to file");
                     } else {
                         println!(
                             "Failed to Create file at {:?}\nBecause: {:?}",
@@ -201,7 +228,9 @@ pub fn add_file(target: PathBuf, name: String) {
         } else {
             let file = File::create(target_item.clone());
             if file.is_ok() {
-                file.unwrap().write_all(content).unwrap();
+                file.expect("Can't open file")
+                    .write_all(content)
+                    .expect("Can't write content to file");
             } else {
                 println!(
                     "Failed to Create file at {:?}\nBecause: {:?}",
@@ -209,15 +238,52 @@ pub fn add_file(target: PathBuf, name: String) {
                 );
             }
         }
-
-        // if !file.is_ok() {
-        //     println!(
-        //         "Failed to Create file at {:?}\nBecause: {:?}",
-        //         file_name, file
-        //     );
-        // }
-        println!("Create file at {:?}", target_item);
     } else {
         println!("Target is not a dir")
     }
+}
+
+pub fn delete_file(app: &mut FilesApp) {
+    let file_path = app.selected_element.path.clone();
+
+    if file_path.is_dir() {
+        match fs::remove_dir_all(file_path.clone()) {
+            Ok(_) => {
+                refresh_folder(
+                    app,
+                    app.current_path.clone(),
+                    app.hide_hidden_files,
+                    app.search_string.clone(),
+                );
+            }
+            Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+        }
+    } else if file_path.is_file() {
+        match fs::remove_file(file_path.clone()) {
+            Ok(_) => {
+                refresh_folder(
+                    app,
+                    app.current_path.clone(),
+                    app.hide_hidden_files,
+                    app.search_string.clone(),
+                );
+            }
+            Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+        }
+    } else {
+        println!("Could not delete: {:?}", file_path);
+    }
+}
+
+pub fn refresh_folder(
+    app: &mut FilesApp,
+    dir: PathBuf,
+    hide_hidden_files: bool,
+    search_string: String,
+) {
+    app.files = get_root_dir_files(dir, hide_hidden_files, search_string)
+}
+
+pub fn save_to_file(app: &mut FilesApp) {
+    fs::write(app.selected_element.path.clone(), app.content.content.clone());
 }

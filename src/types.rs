@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
+use serde::Serialize;
+use struct_iterable::Iterable;
+
 use crate::file_man::{get_root_dir_files, FileContent};
 
+#[derive(Iterable, Serialize)]
 pub struct KeyBinds {
     pub debug: egui::Key,
     pub move_back: egui::Key,
@@ -20,9 +24,12 @@ pub struct KeyBinds {
 
 pub enum Modes {
     Action,
+    Setting,
     Editing,
     Creation,
     Search,
+    Renaming,
+    Deletion,
 }
 
 #[derive(Clone, Default)]
@@ -40,19 +47,24 @@ pub struct FilesApp {
     pub files: Vec<ItemElement>,
     pub preview: bool,
 
+    pub target: String,
+
     pub new_file_name: String,
     pub search_string: String,
     pub hide_hidden_files: bool,
 
+    pub image_formats: Vec<String>,
     pub content: FileContent,
     pub history: Vec<PathBuf>,
 
+    pub empty: bool,
     pub current_path: PathBuf,
     pub last_path: PathBuf,
 
     pub app_mode: Modes,
 
     pub keybinds: KeyBinds,
+    pub debug: bool,
 }
 
 impl Default for FilesApp {
@@ -60,11 +72,20 @@ impl Default for FilesApp {
         let current_folder = "/home/eko";
         let files = get_root_dir_files(current_folder.into(), true, "".to_string());
 
-        let file_content = FileContent{
-                content: "".to_string(),
-                file_type: crate::file_man::FileContentType::Dir,
-                read: true
+        let file_content = FileContent {
+            content: "".to_string(),
+            file_type: crate::file_man::FileContentType::Dir,
+            read: true,
         };
+
+        let image_formats: Vec<String> = vec![
+            "png".to_string(),
+            "jpg".to_string(),
+            "jpeg".to_string(),
+            "JPEG".to_string(),
+            "JPG".to_string(),
+        ];
+
         let keybinds = KeyBinds {
             debug: egui::Key::Comma,
             move_back: egui::Key::Minus,
@@ -87,18 +108,23 @@ impl Default for FilesApp {
             files,
             preview: true,
 
+            target: "".to_string(),
+
             new_file_name: "".to_string(),
             search_string: "".to_string(),
             hide_hidden_files: true,
 
+            image_formats,
             content: file_content,
             history: vec![current_folder.into()],
 
+            empty: false,
             current_path: PathBuf::from(current_folder),
             last_path: PathBuf::from(current_folder),
 
             app_mode: Modes::Action,
             keybinds,
+            debug: true,
         }
     }
 }
