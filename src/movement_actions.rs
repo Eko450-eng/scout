@@ -1,13 +1,12 @@
 use std::{
     ffi::OsString,
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{
     file_man::{get_content, get_root_dir_files},
     search_file_popup::reset_search,
-    types::ItemElement,
     utils::reset_cursor,
     FilesApp,
 };
@@ -112,6 +111,7 @@ pub fn move_back(app: &mut FilesApp) {
     reset_cursor(app)
 }
 
+// TODO: Implementation needed
 pub fn move_forward(app: &mut FilesApp) {
     let h = &app.history[app.history.len() - 1].clone();
     app.history.push(h.to_path_buf());

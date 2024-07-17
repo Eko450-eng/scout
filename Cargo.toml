@@ -28,16 +28,16 @@ struct_iterable = "0.1.1"
 # [build-dependencies]
 # slint-build = { version = "1.6"}
 
-[profile.test.package]
-adler32.opt-level = 3
-crc32fast.opt-level = 3
-miniz_oxide.opt-level = 3
-png.opt-level = 3
-deflate.opt-level = 3
-
-[profile.dev.package]
-adler32.opt-level = 3
-crc32fast.opt-level = 3
-miniz_oxide.opt-level = 3
-png.opt-level = 3
-deflate.opt-level = 3
+# [profile.test.package]
+# adler32.opt-level = 3
+# crc32fast.opt-level = 3
+# miniz_oxide.opt-level = 3
+# png.opt-level = 3
+# deflate.opt-level = 3
+#
+# [profile.dev.package]
+# adler32.opt-level = 3
+# crc32fast.opt-level = 3
+# miniz_oxide.opt-level = 3
+# png.opt-level = 3
+# deflate.opt-level = 3

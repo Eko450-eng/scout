@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{types::FilesApp, ItemElement};
 
 const MAX_SIZE: u64 = 1000;
@@ -20,9 +22,9 @@ pub fn get_root_dir_files(
         .filter_map(|(_index, entry)| {
             entry.ok().and_then(|en| {
                 Some(ItemElement {
-                    name: en.file_name().into_string().expect("No file name found"),
+                    name: en.file_name().to_str().unwrap().to_string(),
                     path: en.path(),
-                    dir: en.path().is_dir(),
+                    _dir: en.path().is_dir(),
                 })
             })
         })
@@ -79,6 +81,8 @@ pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
     Ok(true)
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum FileContentType {
     Dir,
     Txt,
@@ -86,6 +90,7 @@ pub enum FileContentType {
     Binary,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileContent {
     pub content: String,
     pub file_type: FileContentType,
@@ -285,5 +290,13 @@ pub fn refresh_folder(
 }
 
 pub fn save_to_file(app: &mut FilesApp) {
-    fs::write(app.selected_element.path.clone(), app.content.content.clone());
+    match fs::write(
+        app.selected_element.path.clone(),
+        app.content.content.clone(),
+    ) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("Saving failed: {:?}", e)
+        }
+    }
 }

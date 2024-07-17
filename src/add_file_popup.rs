@@ -3,7 +3,7 @@ use struct_iterable::Iterable;
 
 use crate::{
     file_man::{add_file, refresh_folder, rename_file},
-    types::{KeyBinds, Modes},
+    types::Modes,
     FilesApp,
 };
 
@@ -98,27 +98,13 @@ pub fn setings_popup(
 ) -> Option<egui::InnerResponse<Option<egui::InnerResponse<()>>>> {
     let (pos, size) = center_popup(ctx.clone());
 
-    // pub debug: egui::Key,
-    // pub move_back: egui::Key,
-    // pub reset_search: egui::Key,
-    // pub search: egui::Key,
-    // pub hide_hidden_files: egui::Key,
-    // pub preview: egui::Key,
-    // pub create: egui::Key,
-    // pub delete: egui::Key,
-    // pub rename: egui::Key,
-    // pub move_in: egui::Key,
-    // pub move_out: egui::Key,
-    // pub move_up: egui::Key,
-    // pub move_down: egui::Key,
-
     let window = egui::Window::new("Settings")
         .default_size(size)
         .default_open(true)
         .default_pos(pos);
 
-    match app.app_mode {
-        Modes::Setting => window.show(&ctx, |ui| {
+    if app.setting {
+        window.show(&ctx, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label("Home Directory");
@@ -140,7 +126,8 @@ pub fn setings_popup(
                     }
                 });
             })
-        }),
-        _ => return None,
+        })
+    } else {
+        return None;
     }
 }

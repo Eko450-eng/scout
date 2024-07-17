@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use struct_iterable::Iterable;
 
 use crate::file_man::{get_root_dir_files, FileContent};
 
-#[derive(Iterable, Serialize)]
+#[derive(Debug, Iterable, Deserialize, Serialize)]
 pub struct KeyBinds {
     pub debug: egui::Key,
     pub move_back: egui::Key,
@@ -22,24 +22,26 @@ pub struct KeyBinds {
     pub move_down: egui::Key,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Modes {
     Action,
-    Setting,
     Editing,
     Creation,
     Search,
     Renaming,
     Deletion,
+    NonAction,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct ItemElement {
     pub name: String,
     pub path: PathBuf,
-    pub dir: bool,
+    pub _dir: bool,
 }
 
 // FilesApp
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FilesApp {
     pub selected_element_index: usize,
     pub selected_element: ItemElement,
@@ -64,7 +66,12 @@ pub struct FilesApp {
     pub app_mode: Modes,
 
     pub keybinds: KeyBinds,
+
     pub debug: bool,
+    pub setting: bool,
+
+    pub double_g: bool,
+    pub counter: i32,
 }
 
 impl Default for FilesApp {
@@ -124,7 +131,12 @@ impl Default for FilesApp {
 
             app_mode: Modes::Action,
             keybinds,
-            debug: true,
+
+            debug: false,
+            setting: false,
+
+            double_g: false,
+            counter: 0,
         }
     }
 }

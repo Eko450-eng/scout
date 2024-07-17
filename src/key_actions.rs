@@ -1,4 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs, path::{Path, PathBuf}, thread::sleep, time::Duration
+};
 
 use egui::{Modifiers, Ui};
 use serde_json::json;
@@ -10,14 +12,21 @@ use crate::{
     types::{FilesApp, Modes},
 };
 
-pub fn read_filesapp_state(app: &mut FilesApp) {
+// TODO: Implement
+pub fn read_filesapp_state() -> Result<FilesApp, std::io::Error>{
     let config = PathBuf::from("/home/eko/.config/scout/config.json");
     match fs::metadata(config.clone()) {
-        Ok(_) => {
-            let config_content = fs::read_to_string(config);
-            println!("Config was read: {}", config_content.unwrap());
-        }
-        Err(_) => (),
+        Ok(_) => match fs::read_to_string(config) {
+            Ok(file_string) => {
+                let app: FilesApp = serde_json::from_str(&file_string).unwrap();
+                Ok(app)
+            }
+            Err(e) => {
+                println!("Could not read: {:?}", e);
+                    return Err(e)
+            }
+        },
+        Err(e) => Err(e),
     }
 }
 
@@ -36,12 +45,41 @@ pub fn save_filesapp_state(app: &mut FilesApp) {
     let target_dir = PathBuf::from("/home/eko/.config/scout/config.json");
 
     let json_data = json!({
-            "preview": app.preview,
-            "keybinds": app.keybinds
+    "selected_element_index": app.selected_element_index,
+    "selected_element": app.selected_element,
+
+    "files": app.files,
+    "preview": app.preview,
+
+    "target": app.target,
+
+    "new_file_name": app.new_file_name,
+    "search_string": app.search_string,
+    "hide_hidden_files": app.hide_hidden_files,
+
+    "image_formats": app.image_formats,
+    "content": app.content,
+    "history": app.history,
+
+    "empty": app.empty,
+    "current_path": app.current_path,
+    "last_path": app.last_path,
+
+    "app_mode": app.app_mode,
+
+    "keybinds": app.keybinds,
+
+    "debug": app.debug,
+    "setting": app.setting,
+
+    "double_g": app.double_g,
+    "counter": app.counter,
     });
 
     match fs::write(target_dir, json_data.to_string()) {
-        Ok(_) => {}
+        Ok(_) => {
+            println!("Saved app state")
+        }
         Err(e) => {
             println!("Could not Save app State: {:?}", e)
         }
@@ -52,6 +90,21 @@ pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
     if ui.input(|i| i.to_owned().consume_key(Modifiers::CTRL, egui::Key::Q)) {
         save_filesapp_state(app);
         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+    } else if ui.input(|i| i.to_owned().consume_key(Modifiers::SHIFT, egui::Key::G)) {
+        app.selected_element_index = app.files.len() - 1
+    } else if ui.input(|i| i.key_pressed(egui::Key::G)) {
+        if app.double_g && ui.input(|i| i.key_pressed(egui::Key::G)) {
+            app.selected_element_index = 0;
+            app.double_g = false
+        } else {
+            app.double_g = true
+        }
+    } else if ui.input(|i| i.key_pressed(app.keybinds.debug)) {
+        if app.debug {
+            app.debug = false
+        } else {
+            app.debug = true
+        }
     } else if ui.input(|i| i.key_pressed(app.keybinds.reset_search)) {
         reset_search(app)
     } else if ui.input(|i| i.key_pressed(egui::Key::I)) {
@@ -114,7 +167,7 @@ pub fn toggle_mode(app: &mut FilesApp) {
         Modes::Search => app.app_mode = Modes::Action,
         Modes::Renaming => app.app_mode = Modes::Action,
         Modes::Deletion => app.app_mode = Modes::Action,
-        Modes::Setting => app.app_mode = Modes::Action,
+        Modes::NonAction => app.app_mode = Modes::Action,
     }
 }
 

@@ -1,4 +1,4 @@
-use egui::{text_edit::TextEditOutput, Context, ScrollArea, Ui};
+use egui::{text_edit::TextEditOutput, Align, Context, Layout, Ui};
 use egui_code_editor::{CodeEditor, Syntax};
 use image::{imageops, GenericImageView};
 
@@ -19,13 +19,10 @@ pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<Text
     })
 }
 
-pub fn show_dir(app: &mut FilesApp, ui: &mut Ui) {
-    // let content = app.content.content.clone();
-    //let count = content.chars().filter(|&c| c == '\n').count();
-
-    ScrollArea::vertical().show(ui, |ui| {
+pub fn show_dir(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<()> {
+    ui.with_layout(Layout::top_down(Align::LEFT), |ui| {
         ui.colored_label(egui::Color32::LIGHT_BLUE, app.content.content.clone());
-    });
+    })
 }
 
 fn load_image(app: &mut FilesApp) -> Result<image::DynamicImage, image::ImageError> {
@@ -50,7 +47,7 @@ fn load_image(app: &mut FilesApp) -> Result<image::DynamicImage, image::ImageErr
     }
 }
 
-// TODO: Fucking unusable laggy shit af
+// WARN: In debugging mode this will be very slow apparently but super fast in --release
 pub fn show_image(ctx: Context, app: &mut FilesApp, ui: &mut Ui) {
     if !app.preview {
         return;

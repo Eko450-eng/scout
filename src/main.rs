@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 mod add_file_popup;
+mod debug_window;
 mod file_man;
 mod key_actions;
 mod main_view;
@@ -15,11 +15,11 @@ mod utils;
 use std::{fs, path::PathBuf};
 
 use add_file_popup::{add_file_popup, move_file_popup, setings_popup};
+use debug_window::debug_window;
 use eframe::{egui, App};
-use egui::{Align, Layout};
 use key_actions::{
     handle_key_action, handle_key_creation, handle_key_delete, handle_key_editing,
-    handle_key_search,
+    handle_key_search, read_filesapp_state,
 };
 use main_view::main_view;
 use navigation_bar::navigation_bar;
@@ -35,7 +35,15 @@ impl App for FilesApp {
             add_file_popup(ctx.clone(), self);
             move_file_popup(ctx.clone(), self);
             setings_popup(ctx.clone(), self);
+            debug_window(ctx.clone(), self);
             search_file_popup(ctx.clone(), self);
+
+            if self.double_g && self.counter < 50 {
+                self.counter = self.counter + 1;
+            } else {
+                self.double_g = false;
+                self.counter = 0;
+            }
 
             match self.app_mode {
                 Modes::Action => mode_display = "Action",
@@ -44,10 +52,8 @@ impl App for FilesApp {
                 Modes::Search => mode_display = "Search",
                 Modes::Renaming => mode_display = "Renaming",
                 Modes::Deletion => mode_display = "Deletion",
-                Modes::Setting => mode_display = "Settings",
+                Modes::NonAction => mode_display = "Settings",
             }
-
-            navigation_bar(ui, self);
 
             // Key events
             match self.app_mode {
@@ -59,71 +65,71 @@ impl App for FilesApp {
                 _ => (),
             };
 
-            let vh = ctx.input(|i| i.screen_rect().y_range());
-            ui.horizontal(|ui| {
-                ui.set_height(vh.max - 100.0);
-                ui.vertical(|ui| {
-                    ui.set_height(vh.max - 200.0);
+            egui::TopBottomPanel::top("menu_bar").show_inside(ui, |ui| {
+                navigation_bar(ui, self);
+            });
 
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                let height = ui.available_height();
+                ui.horizontal(|ui| {
+                    ui.set_height(height);
                     main_view(ui, self);
-                });
 
-                ui.vertical(|ui| {
-                    ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                        if self.preview {
-                            match self.content.file_type {
-                                file_man::FileContentType::Dir => {
-                                    show_dir(self, ui);
-                                }
-                                file_man::FileContentType::Txt => {
-                                    show_preview(self, ui);
-                                }
-                                file_man::FileContentType::Image => {
-                                    show_image(ctx.clone(), self, ui);
-                                }
-                                _ => {
-                                    if !self.content.read {
-                                        ui.label("Too big to Preview");
-                                    }
+                    if self.preview {
+                        match self.content.file_type {
+                            file_man::FileContentType::Dir => {
+                                show_dir(self, ui);
+                            }
+                            file_man::FileContentType::Txt => {
+                                show_preview(self, ui);
+                            }
+                            file_man::FileContentType::Image => {
+                                show_image(ctx.clone(), self, ui);
+                            }
+                            _ => {
+                                if !self.content.read {
+                                    ui.label("Too big to Preview");
                                 }
                             }
                         }
-                        ui.with_layout(Layout::bottom_up(Align::RIGHT), |ui| {
-                            if matches!(self.app_mode, Modes::Deletion) {
-                                ui.colored_label(
-                                    egui::Color32::RED,
-                                    "Are you sure you want to delete this? (Y | N)",
-                                );
-                            }
-                            ui.colored_label(egui::Color32::LIGHT_BLUE, mode_display);
-                        })
-                    })
+                    }
                 });
             });
+
+            egui::TopBottomPanel::bottom("status_bar")
+                .resizable(false)
+                .show_inside(ui, |ui| {
+                    ui.colored_label(egui::Color32::LIGHT_BLUE, mode_display);
+                    if matches!(self.app_mode, Modes::Deletion) {
+                        ui.colored_label(
+                            egui::Color32::RED,
+                            "Are you sure you want to delete this? (Y | N)",
+                        );
+                    }
+                })
         });
     }
 }
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    let config = PathBuf::from("/home/eko/.config/scout/config.json");
 
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([300.0, 200.0]),
-        ..Default::default()
+    let mut config: FilesApp = FilesApp::default();
+    match read_filesapp_state() {
+        Ok(app) => config = app,
+        Err(_) => {}
     };
 
-    match fs::metadata(config.clone()) {
-        Ok(_) => {
-            let config_content = fs::read_to_string(config);
-            println!("Config was read: {}", config_content.unwrap());
-        }
-        Err(_) => (),
-    }
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_app_id("Scout")
+            .with_inner_size([600.0, 600.0]),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "Scout",
         options,
-        Box::new(|_cc| Ok(Box::new(FilesApp::default()))),
+        Box::new(|_cc| Ok(Box::new(config))),
     )
 }
