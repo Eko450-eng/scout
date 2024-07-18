@@ -4,6 +4,8 @@ use image::{imageops, GenericImageView};
 
 use crate::types::FilesApp;
 
+/// Shows A editable Code Editor preview with the app.content.content and writes it to the
+/// currently selected files 
 pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<TextEditOutput> {
     ui.vertical(|ui| {
         CodeEditor::default()

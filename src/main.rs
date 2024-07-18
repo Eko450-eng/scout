@@ -12,24 +12,29 @@ mod search_file_popup;
 mod types;
 mod utils;
 
-use std::{fs, path::PathBuf};
-
 use add_file_popup::{add_file_popup, move_file_popup, setings_popup};
 use debug_window::debug_window;
 use eframe::{egui, App};
+use file_man::get_root_dir_files;
 use key_actions::{
     handle_key_action, handle_key_creation, handle_key_delete, handle_key_editing,
-    handle_key_search, read_filesapp_state,
+    handle_key_search,
 };
 use main_view::main_view;
 use navigation_bar::navigation_bar;
 use previewer::{show_dir, show_image, show_preview};
 use search_file_popup::search_file_popup;
 use types::{FilesApp, ItemElement, Modes};
+use utils::read_filesapp_state;
 
 impl App for FilesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui_extras::install_image_loaders(ctx);
+        self.files = get_root_dir_files(
+            self.current_path.clone(),
+            self.hide_hidden_files,
+            self.search_string.clone(),
+        );
         egui::CentralPanel::default().show(ctx, |ui| {
             let mode_display;
             add_file_popup(ctx.clone(), self);
@@ -127,9 +132,5 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    eframe::run_native(
-        "Scout",
-        options,
-        Box::new(|_cc| Ok(Box::new(config))),
-    )
+    eframe::run_native("Scout", options, Box::new(|_cc| Ok(Box::new(config))))
 }

@@ -9,15 +9,41 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::FilesApp, ItemElement};
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize)]
+pub enum FileContentType {
+    Dir,
+    Txt,
+    Image,
+    Binary,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FileContent {
+    pub content: String,
+    pub file_type: FileContentType,
+    pub read: bool,
+}
+
+
+
+
+// TODO: Make this a setting
 const MAX_SIZE: u64 = 1000;
 
+/// Gives back all files inside given directory
+/// Search Term when starting with ! will be translated to regex
+/// # Examples
+/// ```rust
+/// let app.files = get_root_dir_files("home/user/Desktop", true, "search term".to_string());
+/// ```
 pub fn get_root_dir_files(
     dir: PathBuf,
     hide_hidden_files: bool,
-    search_string: String,
+    search_term: String,
 ) -> Vec<ItemElement> {
     let mut file: Vec<ItemElement> = read_dir(dir)
-        .expect("Fail")
+        .expect("Failed to read directory")
         .enumerate()
         .filter_map(|(_index, entry)| {
             entry.ok().and_then(|en| {
@@ -34,19 +60,19 @@ pub fn get_root_dir_files(
     if hide_hidden_files {
         file.retain(|item| !item.name.starts_with("."));
     }
-    if search_string != "" {
-        if search_string.starts_with("!") {
-            let ss = &search_string[1..];
+    if search_term != "" {
+        if search_term.starts_with("!") {
+            let ss = &search_term[1..];
             file.retain(|item| {
                 regex::Regex::new(&ss)
                     .expect("Can't create the regex")
                     .is_match(&item.name)
             });
         } else {
-            if contains_uppercase(&search_string) {
-                file.retain(|item| item.name.contains(&search_string));
+            if contains_uppercase(&search_term) {
+                file.retain(|item| item.name.contains(&search_term));
             } else {
-                file.retain(|item| item.name.to_lowercase().contains(&search_string));
+                file.retain(|item| item.name.to_lowercase().contains(&search_term));
             }
         }
     }
@@ -79,22 +105,6 @@ pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
     }
 
     Ok(true)
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Serialize)]
-pub enum FileContentType {
-    Dir,
-    Txt,
-    Image,
-    Binary,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct FileContent {
-    pub content: String,
-    pub file_type: FileContentType,
-    pub read: bool,
 }
 
 pub fn get_content(target: PathBuf) -> FileContent {

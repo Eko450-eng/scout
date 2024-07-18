@@ -1,4 +1,4 @@
-use egui::{Align, ScrollArea, Sense, Ui};
+use egui::{Align, ScrollArea, Ui};
 
 use crate::{
     file_man::{get_content, get_root_dir_files},

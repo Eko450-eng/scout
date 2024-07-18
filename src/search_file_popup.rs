@@ -6,7 +6,7 @@ pub fn search_file_popup(
     ctx: Context,
     app: &mut FilesApp,
 ) -> Option<egui::InnerResponse<Option<()>>> {
-    let (pos, size)=center_popup(ctx.clone());
+    let (pos, size) = center_popup(ctx.clone());
 
     let window = egui::Window::new("Search")
         .default_size(size)

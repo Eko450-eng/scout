@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use struct_iterable::Iterable;
 
-use crate::file_man::{get_root_dir_files, FileContent};
+use crate::{file_man::{get_root_dir_files, FileContent}, utils::get_home_dir};
 
 #[derive(Debug, Iterable, Deserialize, Serialize)]
 pub struct KeyBinds {
@@ -76,8 +76,8 @@ pub struct FilesApp {
 
 impl Default for FilesApp {
     fn default() -> Self {
-        let current_folder = "/home/eko";
-        let files = get_root_dir_files(current_folder.into(), true, "".to_string());
+        let current_folder = get_home_dir();
+        let files = get_root_dir_files(current_folder.clone(), true, "".to_string());
 
         let file_content = FileContent {
             content: "".to_string(),
@@ -123,10 +123,10 @@ impl Default for FilesApp {
 
             image_formats,
             content: file_content,
-            history: vec![current_folder.into()],
+            history: vec![current_folder.clone()],
 
             empty: false,
-            current_path: PathBuf::from(current_folder),
+            current_path: PathBuf::from(current_folder.clone()),
             last_path: PathBuf::from(current_folder),
 
             app_mode: Modes::Action,

@@ -1,8 +1,4 @@
-use std::{
-    ffi::OsString,
-    fs,
-    path::PathBuf,
-};
+use std::{ffi::OsString, fs, path::PathBuf};
 
 use crate::{
     file_man::{get_content, get_root_dir_files},
@@ -92,7 +88,7 @@ pub fn move_out(app: &mut FilesApp) {
         app.hide_hidden_files,
         app.search_string.clone(),
     );
-    if app.files.len() > 0{
+    if app.files.len() > 0 {
         app.empty = false;
     }
     reset_cursor(app)

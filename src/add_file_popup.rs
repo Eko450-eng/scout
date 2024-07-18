@@ -7,6 +7,11 @@ use crate::{
     FilesApp,
 };
 
+/// Gives Position and Size for a centered Poup
+/// # Examples 
+/// ```
+/// let (pos, size) = center_popup(ctx)
+/// ```
 pub fn center_popup(ctx: Context) -> (Pos2, egui::Vec2) {
     let vh = ctx.input(|i| i.screen_rect().y_range());
     let vw = ctx.input(|i| i.screen_rect().x_range());
