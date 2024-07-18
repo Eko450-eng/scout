@@ -3,6 +3,7 @@ use std::{
     fs::{self, read_dir, File},
     io::{self, BufReader, Read, Write},
     path::{Path, PathBuf},
+    thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -24,9 +25,6 @@ pub struct FileContent {
     pub file_type: FileContentType,
     pub read: bool,
 }
-
-
-
 
 // TODO: Make this a setting
 const MAX_SIZE: u64 = 1000;
@@ -107,7 +105,7 @@ pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
     Ok(true)
 }
 
-pub fn get_content(target: PathBuf) -> FileContent {
+pub fn get_content_unthreaded(target: PathBuf) -> FileContent {
     let mut files_list: Vec<String> = vec![];
     let mut file_size: u64 = 0;
 
@@ -165,6 +163,29 @@ pub fn get_content(target: PathBuf) -> FileContent {
         out.file_type = FileContentType::Dir;
         out.content = files_list.join("\n");
         return out;
+    }
+}
+
+const UNTHREADED: bool = false;
+pub fn get_content(target: PathBuf) -> FileContent {
+    if UNTHREADED {
+        get_content_unthreaded(target)
+    } else {
+        let content_closure = move || get_content_unthreaded(target);
+
+        let thread = thread::spawn(content_closure);
+
+        match thread.join() {
+            Ok(file) => file,
+            Err(e) => {
+                println!("Getting content failed due to {:?}", e);
+                FileContent {
+                    content: "".to_string(),
+                    file_type: FileContentType::Dir,
+                    read: false,
+                }
+            }
+        }
     }
 }
 

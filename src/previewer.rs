@@ -1,3 +1,5 @@
+use std::thread;
+
 use egui::{text_edit::TextEditOutput, Align, Context, Layout, Ui};
 use egui_code_editor::{CodeEditor, Syntax};
 use image::{imageops, GenericImageView};
