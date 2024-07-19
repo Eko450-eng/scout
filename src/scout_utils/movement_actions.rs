@@ -17,6 +17,7 @@ fn is_folder_empty(folder_path: &PathBuf) -> Result<bool, std::io::Error> {
 
 pub fn move_in(app: &mut FilesApp) {
     if !app.empty {
+    app.multiselect.clear();
         let item = app.files[app.selected_element_index].clone();
 
         let mut image_ext_osstring: Vec<OsString> = vec![];
@@ -80,6 +81,7 @@ pub fn move_in(app: &mut FilesApp) {
 }
 
 pub fn move_out(app: &mut FilesApp) {
+    app.multiselect.clear();
     app.last_path = app.current_path.clone();
     let mut new_path = app.current_path.clone();
     new_path.pop();

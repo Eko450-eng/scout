@@ -1,14 +1,16 @@
 use std::{
     ffi::OsString,
     fs::{self, read_dir, File},
-    io::{self, BufReader, Read, Write},
-    path::{Path, PathBuf},
+    io::{Error, Write},
+    path::PathBuf,
     thread,
 };
 
 use serde::{Deserialize, Serialize};
 
 use crate::{types::FilesApp, ItemElement};
+
+use super::utils::{contains_uppercase, is_utf8};
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,33 +78,6 @@ pub fn get_root_dir_files(
     }
 
     return file;
-}
-
-fn contains_uppercase(input: &str) -> bool {
-    for c in input.chars() {
-        if c.is_uppercase() {
-            return true;
-        }
-    }
-    false
-}
-
-pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
-    let file = File::open(path)?;
-    let mut reader = BufReader::new(file);
-    let mut buffer = [0; 1024];
-
-    while let Ok(bytes_read) = reader.read(&mut buffer) {
-        if bytes_read == 0 {
-            break;
-        }
-
-        if let Err(_) = std::str::from_utf8(&buffer[..bytes_read]) {
-            return Ok(false);
-        }
-    }
-
-    Ok(true)
 }
 
 pub fn get_content_unthreaded(target: PathBuf) -> FileContent {
@@ -282,32 +257,46 @@ pub fn add_file(target: PathBuf, name: String, seperator: String) {
 pub fn delete_file(app: &mut FilesApp) {
     let file_path = app.selected_element.path.clone();
 
+    if app.multiselect.len() > 0 {
+        for i in app.multiselect.clone() {
+            let element = app.files[i].clone();
+            match delete_single_file(element.path) {
+                Ok(_) => (),
+                Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+            }
+        }
+        refresh_folder(
+            app,
+            app.current_path.clone(),
+            app.hide_hidden_files,
+            app.search_string.clone(),
+        );
+    } else {
+        match delete_single_file(file_path.clone()) {
+            Ok(_) => refresh_folder(
+                app,
+                app.current_path.clone(),
+                app.hide_hidden_files,
+                app.search_string.clone(),
+            ),
+            Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+        }
+    }
+}
+
+fn delete_single_file(file_path: PathBuf) -> Result<bool, std::io::Error> {
     if file_path.is_dir() {
         match fs::remove_dir_all(file_path.clone()) {
-            Ok(_) => {
-                refresh_folder(
-                    app,
-                    app.current_path.clone(),
-                    app.hide_hidden_files,
-                    app.search_string.clone(),
-                );
-            }
-            Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+            Ok(_) => Ok(true),
+            Err(err) => Err(err),
         }
     } else if file_path.is_file() {
         match fs::remove_file(file_path.clone()) {
-            Ok(_) => {
-                refresh_folder(
-                    app,
-                    app.current_path.clone(),
-                    app.hide_hidden_files,
-                    app.search_string.clone(),
-                );
-            }
-            Err(err) => println!("Could not delete: {:?} \nBecause {:?}", file_path, err),
+            Ok(_) => Ok(true),
+            Err(err) => Err(err),
         }
     } else {
-        println!("Could not delete: {:?}", file_path);
+        Err(Error::new(std::io::ErrorKind::Other, "Could not delete"))
     }
 }
 
@@ -317,7 +306,9 @@ pub fn refresh_folder(
     hide_hidden_files: bool,
     search_string: String,
 ) {
-    app.files = get_root_dir_files(dir, hide_hidden_files, search_string)
+    app.files = get_root_dir_files(dir, hide_hidden_files, search_string);
+    app.selected_element_index=0;
+    app.multiselect.clear();
 }
 
 pub fn save_to_file(app: &mut FilesApp) {

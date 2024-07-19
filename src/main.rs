@@ -13,8 +13,9 @@ use components::{
 };
 use eframe::{egui, App};
 use poups::{
-    add_file_popup::{add_file_popup, move_file_popup, setings_popup},
-    search_file_popup::search_file_popup,
+    add_file_popup::{add_file_popup, move_file_popup},
+    search_file_popup::search_file_popup, 
+    settings_popup::settings_popup, 
 };
 
 use scout_utils::{
@@ -39,7 +40,7 @@ impl App for FilesApp {
             let mode_display;
             add_file_popup(ctx.clone(), self);
             move_file_popup(ctx.clone(), self);
-            setings_popup(ctx.clone(), self);
+            settings_popup(ctx.clone(), self);
             debug_window(ctx.clone(), self);
             search_file_popup(ctx.clone(), self);
 

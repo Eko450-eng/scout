@@ -6,7 +6,12 @@ use crate::{
 };
 
 use super::{
-    action_functions::{jump_bottom, jump_top, key_quit, rename_selected_file, search, toggle_debug, toggle_hidden, toggle_mode, toggle_preview}, file_man::{delete_file, save_to_file}, movement_actions::{move_back, move_down, move_in, move_out, move_up}
+    action_functions::{
+        jump_bottom, jump_top, key_quit, rename_selected_file, search, toggle_debug, toggle_hidden,
+        toggle_mode, toggle_preview,
+    },
+    file_man::{delete_file, save_to_file},
+    movement_actions::{move_back, move_down, move_in, move_out, move_up},
 };
 
 pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
@@ -45,6 +50,15 @@ pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
         move_back(app)
     } else if ui.input(|i| i.key_pressed(app.keybinds.move_out)) {
         move_out(app)
+    } else if ui.input(|i| i.key_pressed(egui::Key::Space)) {
+        if app.multiselect.contains(&app.selected_element_index) {
+            app.multiselect
+                .retain(|&el| el != app.selected_element_index)
+        } else {
+            app.multiselect.push(app.selected_element_index)
+        }
+    } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.multiselect.clear()
     } else if ui.input(|i| (i.key_pressed(egui::Key::Enter)) || i.key_pressed(app.keybinds.move_in))
     {
         move_in(app)

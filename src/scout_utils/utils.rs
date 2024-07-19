@@ -1,8 +1,36 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs::{self, File}, io::{self, BufReader, Read}, path::{Path, PathBuf}};
 
 use serde_json::json;
 
 use crate::{types::ItemElement, FilesApp};
+
+
+pub fn contains_uppercase(input: &str) -> bool {
+    for c in input.chars() {
+        if c.is_uppercase() {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn is_utf8<P: AsRef<Path>>(path: P) -> io::Result<bool> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0; 1024];
+
+    while let Ok(bytes_read) = reader.read(&mut buffer) {
+        if bytes_read == 0 {
+            break;
+        }
+
+        if let Err(_) = std::str::from_utf8(&buffer[..bytes_read]) {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
 
 /// Sets the selected_element_index to 0 and changes the selected element accordingly
 pub fn reset_cursor(app: &mut FilesApp) {
@@ -59,45 +87,48 @@ pub fn save_filesapp_state(app: &mut FilesApp) {
 
     config_path.push(CONFIG_NAME);
 
+    let multiselect: Vec<usize> = Vec::new();
     let json_data = json!({
-    "seperator": app.seperator,
-    "selected_element_index": 0,
-    "selected_element": ItemElement{
-        name: "".to_string(),
-        path: "".into(),
-        _dir: false,
-    },
+        "seperator": app.seperator,
+        "selected_element_index": 0,
+        "selected_element": ItemElement{
+            name: "".to_string(),
+            path: "".into(),
+            _dir: false,
+        },
 
-    "files": vec![ItemElement{
-        name: "".to_string(),
-        path: "".into(),
-        _dir: false,
-    }],
-    "preview": app.preview,
+        "files": vec![ItemElement{
+            name: "".to_string(),
+            path: "".into(),
+            _dir: false,
+        }],
+        "preview": app.preview,
 
-    "target": "".to_string(),
+        "target": "".to_string(),
 
-    "new_file_name": app.new_file_name,
-    "search_string": app.search_string,
-    "hide_hidden_files": app.hide_hidden_files,
+        "new_file_name": app.new_file_name,
+        "search_string": app.search_string,
+        "hide_hidden_files": app.hide_hidden_files,
 
-    "image_formats": app.image_formats,
-    "content": app.content,
-    "history": app.history,
+        "image_formats": app.image_formats,
+        "content": app.content,
+        "history": app.history,
 
-    "empty": app.empty,
-    "current_path": app.current_path,
-    "last_path": app.last_path,
+        "empty": app.empty,
+        "current_path": app.current_path,
+        "last_path": app.last_path,
 
-    "app_mode": app.app_mode,
+        "app_mode": app.app_mode,
 
-    "keybinds": app.keybinds,
+        "keybinds": app.keybinds,
 
-    "debug": app.debug,
-    "setting": app.setting,
+        "debug": app.debug,
+        "setting": app.setting,
 
-    "double_g": app.double_g,
-    "counter": app.counter,
+        "double_g": app.double_g,
+        "counter": app.counter,
+
+        "multiselect": multiselect,
     });
 
     match fs::write(config_path, json_data.to_string()) {

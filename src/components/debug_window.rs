@@ -19,10 +19,10 @@ pub fn debug_window(ctx: Context, app: &mut FilesApp) -> Option<egui::InnerRespo
     };
 
     let window = egui::Window::new("Debug window")
+        .resizable(true)
         .default_size(size)
         .default_open(true)
-        .default_pos(pos)
-        .current_pos(pos);
+        .default_pos(pos);
 
     if app.debug {
         window.show(&ctx, |ui| {
@@ -41,16 +41,16 @@ pub fn debug_window(ctx: Context, app: &mut FilesApp) -> Option<egui::InnerRespo
                 ui.label(app.current_path.to_string_lossy().to_string());
             });
 
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 ui.label("Selected: ");
                 ui.label(app.selected_element.path.to_string_lossy().to_string());
                 ui.label(app.selected_element.name.clone());
-                match app.content.file_type {
-                    FileContentType::Dir => ui.label("Dir"),
-                    FileContentType::Txt => ui.label("Txt"),
-                    FileContentType::Image => ui.label("Img"),
-                    FileContentType::Binary => ui.label("Bin"),
-                }
+                // match app.content.file_type {
+                //     FileContentType::Dir => ui.label("Dir"),
+                //     FileContentType::Txt => ui.label("Txt"),
+                //     FileContentType::Image => ui.label("Img"),
+                //     FileContentType::Binary => ui.label("Bin"),
+                // }
             });
         })
     } else {

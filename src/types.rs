@@ -50,6 +50,8 @@ pub struct FilesApp {
     pub selected_element_index: usize,
     pub selected_element: ItemElement,
 
+    pub multiselect: Vec<usize>,
+
     pub files: Vec<ItemElement>,
     pub preview: bool,
 
@@ -119,10 +121,14 @@ impl Default for FilesApp {
             move_down: egui::Key::J,
         };
 
+        let multiselect: Vec<usize> = Vec::new();
+
         Self {
             seperator,
             selected_element_index: 0,
             selected_element: files[0].clone(),
+
+            multiselect,
 
             files,
             preview: true,
