@@ -1,14 +1,36 @@
-use egui::Ui;
+use egui::{Modifiers, Ui};
 
 use crate::{
-    file_man::{get_root_dir_files, rename_file},
+    poups::search_file_popup::reset_search,
+    types::{FilesApp, Modes},
+};
+
+use super::{
+    file_man::{delete_file, get_root_dir_files, save_to_file},
     movement_actions::{move_back, move_down, move_in, move_out, move_up},
-    search_file_popup::reset_search,
-    types::{FilesApp, ItemElement, Modes},
+    utils::save_filesapp_state,
 };
 
 pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
-    if ui.input(|i| i.key_pressed(app.keybinds.reset_search)) {
+    if ui.input(|i| i.to_owned().consume_key(Modifiers::CTRL, egui::Key::Q)) {
+        save_filesapp_state(app);
+        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+    } else if ui.input(|i| i.to_owned().consume_key(Modifiers::SHIFT, egui::Key::G)) {
+        app.selected_element_index = app.files.len() - 1
+    } else if ui.input(|i| i.key_pressed(egui::Key::G)) {
+        if app.double_g && ui.input(|i| i.key_pressed(egui::Key::G)) {
+            app.selected_element_index = 0;
+            app.double_g = false
+        } else {
+            app.double_g = true
+        }
+    } else if ui.input(|i| i.key_pressed(app.keybinds.debug)) {
+        if app.debug {
+            app.debug = false
+        } else {
+            app.debug = true
+        }
+    } else if ui.input(|i| i.key_pressed(app.keybinds.reset_search)) {
         reset_search(app)
     } else if ui.input(|i| i.key_pressed(egui::Key::I)) {
         toggle_mode(app)
@@ -35,9 +57,11 @@ pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
         app.app_mode = Modes::Creation
     // Delete File
     } else if ui.input(|i| i.key_pressed(app.keybinds.delete)) {
+        app.app_mode = Modes::Deletion
         // Rename file
     } else if ui.input(|i| i.key_pressed(app.keybinds.rename)) {
-        action_rename(app.selected_element.clone())
+        app.target = app.current_path.to_string_lossy().to_string() + &app.seperator;
+        app.app_mode = Modes::Renaming
     // Move Down
     } else if ui.input(|i| {
         i.key_pressed(app.keybinds.move_down) && app.selected_element_index < app.files.len() - 1
@@ -54,16 +78,10 @@ pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
     // Move in
     } else if ui.input(|i| (i.key_pressed(egui::Key::Enter)) || i.key_pressed(app.keybinds.move_in))
     {
-        move_in(app)
+        if !app.empty {
+            move_in(app)
+        }
     };
-}
-
-pub fn action_rename(selected_element: ItemElement) {
-    if false == true {
-        rename_file(selected_element.path.clone(), "test".to_string())
-    } else {
-        println!("This feature is currently disabled")
-    }
 }
 
 pub fn toggle_mode(app: &mut FilesApp) {
@@ -72,17 +90,40 @@ pub fn toggle_mode(app: &mut FilesApp) {
         Modes::Editing => app.app_mode = Modes::Action,
         Modes::Creation => app.app_mode = Modes::Action,
         Modes::Search => app.app_mode = Modes::Action,
+        Modes::Renaming => app.app_mode = Modes::Action,
+        Modes::Deletion => app.app_mode = Modes::Action,
+        Modes::NonAction => app.app_mode = Modes::Action,
     }
 }
 
 pub fn handle_key_search(app: &mut FilesApp, ui: &mut Ui) {
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.app_mode = Modes::Action
+    } else if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        app.app_mode = Modes::Action
+    }
+}
+
+pub fn handle_key_delete(app: &mut FilesApp, ui: &mut Ui) {
+    if ui.input(|i| i.key_pressed(egui::Key::Escape) || i.key_pressed(egui::Key::N)) {
+        app.app_mode = Modes::Action
+    } else if ui.input(|i| i.key_pressed(egui::Key::Enter) || i.key_pressed(egui::Key::Y)) {
+        delete_file(app);
+        app.app_mode = Modes::Action
     }
 }
 
 pub fn handle_key_creation(app: &mut FilesApp, ui: &mut Ui) {
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.app_mode = Modes::Action
+    }
+}
+
+pub fn handle_key_editing(app: &mut FilesApp, ui: &mut Ui) {
+    if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.app_mode = Modes::Action
+    } else if ui.input(|i| i.to_owned().consume_key(Modifiers::CTRL, egui::Key::S)) {
+        save_to_file(app);
         app.app_mode = Modes::Action
     }
 }
