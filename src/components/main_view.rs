@@ -1,7 +1,7 @@
 use egui::{Align, ScrollArea, Ui};
 
 use crate::{
-    file_man::{get_content, get_root_dir_files},
+    scout_utils::file_man::{get_content, get_root_dir_files},
     types::FilesApp,
 };
 

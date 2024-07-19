@@ -208,7 +208,7 @@ pub fn rename_file(app: &mut FilesApp, file: PathBuf) {
     }
 }
 
-pub fn add_file(target: PathBuf, name: String) {
+pub fn add_file(target: PathBuf, name: String, seperator: String) {
     let content: &[u8] = b"";
     if target.is_dir() {
         let mut target_item = target.clone();
@@ -218,16 +218,16 @@ pub fn add_file(target: PathBuf, name: String) {
         if target_item
             .to_str()
             .expect("Target item can't be converted to String")
-            .contains("/")
+            .contains(&seperator)
         {
             let mut final_file_name: PathBuf = PathBuf::new();
             let mut create_file = false;
 
             // Check if last element is a file or still a path
-            if !name.ends_with("/") {
+            if !name.ends_with(seperator.chars().next().unwrap()) {
                 final_file_name = name
                     .clone()
-                    .split("/")
+                    .split(&seperator)
                     .last()
                     .expect("Can't split into file name")
                     .into();

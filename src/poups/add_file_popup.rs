@@ -2,13 +2,12 @@ use egui::{Context, Pos2, Vec2};
 use struct_iterable::Iterable;
 
 use crate::{
-    file_man::{add_file, refresh_folder, rename_file},
-    types::Modes,
-    FilesApp,
+    scout_utils::file_man::{add_file, refresh_folder, rename_file},
+    types::{FilesApp, Modes},
 };
 
 /// Gives Position and Size for a centered Poup
-/// # Examples 
+/// # Examples
 /// ```
 /// let (pos, size) = center_popup(ctx)
 /// ```
@@ -45,10 +44,11 @@ pub fn add_file_popup(ctx: Context, app: &mut FilesApp) -> Option<egui::InnerRes
                 let mut path = app.selected_element.clone().path;
                 path.pop();
 
-                let name =
-                    app.current_path.to_string_lossy().to_string() + "/" + &app.new_file_name;
+                let name = app.current_path.to_string_lossy().to_string()
+                    + &app.seperator
+                    + &app.new_file_name;
 
-                add_file(path, name);
+                add_file(path, name, app.seperator.clone());
                 refresh_folder(
                     app,
                     app.current_path.clone(),

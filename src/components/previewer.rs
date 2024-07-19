@@ -1,5 +1,3 @@
-use std::thread;
-
 use egui::{text_edit::TextEditOutput, Align, Context, Layout, Ui};
 use egui_code_editor::{CodeEditor, Syntax};
 use image::{imageops, GenericImageView};
@@ -7,7 +5,7 @@ use image::{imageops, GenericImageView};
 use crate::types::FilesApp;
 
 /// Shows A editable Code Editor preview with the app.content.content and writes it to the
-/// currently selected files 
+/// currently selected files
 pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<TextEditOutput> {
     ui.vertical(|ui| {
         CodeEditor::default()
@@ -23,6 +21,7 @@ pub fn show_preview(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<Text
     })
 }
 
+/// Shows an overview of the Elements inside the Directoy
 pub fn show_dir(app: &mut FilesApp, ui: &mut Ui) -> egui::InnerResponse<()> {
     ui.with_layout(Layout::top_down(Align::LEFT), |ui| {
         ui.colored_label(egui::Color32::LIGHT_BLUE, app.content.content.clone());
@@ -51,7 +50,8 @@ fn load_image(app: &mut FilesApp) -> Result<image::DynamicImage, image::ImageErr
     }
 }
 
-// WARN: In debugging mode this will be very slow apparently but super fast in --release
+/// Shows the Image scaled down
+/// WARN: In debugging mode this will be very slow apparently but super fast in --release
 pub fn show_image(ctx: Context, app: &mut FilesApp, ui: &mut Ui) {
     if !app.preview {
         return;

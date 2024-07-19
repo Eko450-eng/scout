@@ -1,10 +1,10 @@
 use std::{ffi::OsString, fs, path::PathBuf};
 
-use crate::{
+use crate::{poups::search_file_popup::reset_search, types::FilesApp};
+
+use super::{
     file_man::{get_content, get_root_dir_files},
-    search_file_popup::reset_search,
     utils::reset_cursor,
-    FilesApp,
 };
 
 fn is_folder_empty(folder_path: &PathBuf) -> Result<bool, std::io::Error> {

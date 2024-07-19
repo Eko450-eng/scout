@@ -1,6 +1,6 @@
 use egui::{Context, Pos2, Vec2};
 
-use crate::FilesApp;
+use crate::{scout_utils::file_man::FileContentType, FilesApp};
 
 pub fn debug_window(ctx: Context, app: &mut FilesApp) -> Option<egui::InnerResponse<Option<()>>> {
     let back_path = app.current_path.clone();
@@ -46,10 +46,10 @@ pub fn debug_window(ctx: Context, app: &mut FilesApp) -> Option<egui::InnerRespo
                 ui.label(app.selected_element.path.to_string_lossy().to_string());
                 ui.label(app.selected_element.name.clone());
                 match app.content.file_type {
-                    crate::file_man::FileContentType::Dir => ui.label("Dir"),
-                    crate::file_man::FileContentType::Txt => ui.label("Txt"),
-                    crate::file_man::FileContentType::Image => ui.label("Img"),
-                    crate::file_man::FileContentType::Binary => ui.label("Bin"),
+                    FileContentType::Dir => ui.label("Dir"),
+                    FileContentType::Txt => ui.label("Txt"),
+                    FileContentType::Image => ui.label("Img"),
+                    FileContentType::Binary => ui.label("Bin"),
                 }
             });
         })

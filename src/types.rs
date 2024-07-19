@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use struct_iterable::Iterable;
 
-use crate::{file_man::{get_root_dir_files, FileContent}, utils::get_home_dir};
+use crate::scout_utils::file_man::FileContent;
+use crate::scout_utils::file_man::{get_root_dir_files, FileContentType};
+use crate::scout_utils::utils::get_home_dir;
 
 #[derive(Debug, Iterable, Deserialize, Serialize)]
 pub struct KeyBinds {
@@ -43,6 +45,7 @@ pub struct ItemElement {
 // FilesApp
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FilesApp {
+    pub seperator: String,
     pub selected_element_index: usize,
     pub selected_element: ItemElement,
 
@@ -81,8 +84,14 @@ impl Default for FilesApp {
 
         let file_content = FileContent {
             content: "".to_string(),
-            file_type: crate::file_man::FileContentType::Dir,
+            file_type: FileContentType::Dir,
             read: true,
+        };
+
+        let seperator = if std::env::consts::OS == "windows" {
+            "\\".to_string()
+        } else {
+            "/".to_string()
         };
 
         let image_formats: Vec<String> = vec![
@@ -108,7 +117,9 @@ impl Default for FilesApp {
             move_up: egui::Key::K,
             move_down: egui::Key::J,
         };
+
         Self {
+            seperator,
             selected_element_index: 0,
             selected_element: files[0].clone(),
 

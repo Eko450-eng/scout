@@ -1,12 +1,15 @@
 use egui::{Modifiers, Ui};
 
 use crate::{
-    file_man::{delete_file, get_root_dir_files, save_to_file},
-    movement_actions::{move_back, move_down, move_in, move_out, move_up},
-    search_file_popup::reset_search,
-    types::{FilesApp, Modes}, utils::save_filesapp_state,
+    poups::search_file_popup::reset_search,
+    types::{FilesApp, Modes},
 };
 
+use super::{
+    file_man::{delete_file, get_root_dir_files, save_to_file},
+    movement_actions::{move_back, move_down, move_in, move_out, move_up},
+    utils::save_filesapp_state,
+};
 
 pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
     if ui.input(|i| i.to_owned().consume_key(Modifiers::CTRL, egui::Key::Q)) {
@@ -57,7 +60,7 @@ pub fn handle_key_action(app: &mut FilesApp, ui: &mut Ui) {
         app.app_mode = Modes::Deletion
         // Rename file
     } else if ui.input(|i| i.key_pressed(app.keybinds.rename)) {
-        app.target = app.current_path.to_string_lossy().to_string() + "/";
+        app.target = app.current_path.to_string_lossy().to_string() + &app.seperator;
         app.app_mode = Modes::Renaming
     // Move Down
     } else if ui.input(|i| {

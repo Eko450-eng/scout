@@ -1,31 +1,31 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-mod add_file_popup;
-mod debug_window;
-mod file_man;
-mod key_actions;
-mod main_view;
-mod movement_actions;
-mod navigation_bar;
-mod previewer;
-mod search_file_popup;
+mod components;
+mod poups;
+mod scout_utils;
 mod types;
-mod utils;
 
-use add_file_popup::{add_file_popup, move_file_popup, setings_popup};
-use debug_window::debug_window;
-use eframe::{egui, App};
-use file_man::get_root_dir_files;
-use key_actions::{
-    handle_key_action, handle_key_creation, handle_key_delete, handle_key_editing,
-    handle_key_search,
+use components::{
+    debug_window::debug_window,
+    main_view::main_view,
+    navigation_bar::navigation_bar,
+    previewer::{show_dir, show_image, show_preview},
 };
-use main_view::main_view;
-use navigation_bar::navigation_bar;
-use previewer::{show_dir, show_image, show_preview};
-use search_file_popup::search_file_popup;
+use eframe::{egui, App};
+use poups::{
+    add_file_popup::{add_file_popup, move_file_popup, setings_popup},
+    search_file_popup::search_file_popup,
+};
+
+use scout_utils::{
+    file_man::{get_root_dir_files, FileContentType},
+    key_actions::{
+        handle_key_action, handle_key_creation, handle_key_delete, handle_key_editing,
+        handle_key_search,
+    },
+    utils::read_filesapp_state,
+};
 use types::{FilesApp, ItemElement, Modes};
-use utils::read_filesapp_state;
 
 impl App for FilesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -82,13 +82,13 @@ impl App for FilesApp {
 
                     if self.preview {
                         match self.content.file_type {
-                            file_man::FileContentType::Dir => {
+                            FileContentType::Dir => {
                                 show_dir(self, ui);
                             }
-                            file_man::FileContentType::Txt => {
+                            FileContentType::Txt => {
                                 show_preview(self, ui);
                             }
-                            file_man::FileContentType::Image => {
+                            FileContentType::Image => {
                                 show_image(ctx.clone(), self, ui);
                             }
                             _ => {

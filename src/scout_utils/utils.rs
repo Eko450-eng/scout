@@ -12,9 +12,9 @@ pub fn reset_cursor(app: &mut FilesApp) {
 
 const CONFIG_NAME: &str = "config.json";
 
-pub fn get_home_dir() -> PathBuf{
+pub fn get_home_dir() -> PathBuf {
     let config_location = env::var("HOME").unwrap();
-    return PathBuf::from(config_location)
+    return PathBuf::from(config_location);
 }
 
 /// Reads the current App State from the settings location

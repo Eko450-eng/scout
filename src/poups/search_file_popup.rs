@@ -1,6 +1,11 @@
 use egui::Context;
 
-use crate::{add_file_popup::center_popup, file_man::get_root_dir_files, types::Modes, FilesApp};
+use crate::{
+    scout_utils::file_man::get_root_dir_files,
+    types::{FilesApp, Modes},
+};
+
+use super::add_file_popup::center_popup;
 
 pub fn search_file_popup(
     ctx: Context,

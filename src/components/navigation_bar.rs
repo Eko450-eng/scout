@@ -1,6 +1,6 @@
 use egui::Ui;
 
-use crate::{movement_actions::move_out, types::FilesApp};
+use crate::{scout_utils::movement_actions::move_out, types::FilesApp};
 
 pub fn navigation_bar(ui: &mut Ui, app: &mut FilesApp) {
     let mut history: Vec<String> = vec![];
