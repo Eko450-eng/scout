@@ -13,7 +13,11 @@ pub fn reset_cursor(app: &mut FilesApp) {
 const CONFIG_NAME: &str = "config.json";
 
 pub fn get_home_dir() -> PathBuf {
-    let config_location = env::var("HOME").unwrap();
+    let config_location = if std::env::consts::OS == "windows" {
+        "C:\\\\".to_string()
+    } else {
+        env::var("HOME").unwrap()
+    };
     return PathBuf::from(config_location);
 }
 
@@ -21,6 +25,8 @@ pub fn get_home_dir() -> PathBuf {
 /// Default location = /home/UHSER/.config/scout/config.json
 pub fn read_filesapp_state() -> Result<FilesApp, std::io::Error> {
     let mut config = get_home_dir();
+    config.push(".config");
+    config.push("scout");
     config.push(CONFIG_NAME);
     match fs::metadata(config.clone()) {
         Ok(_) => match fs::read_to_string(config) {
@@ -39,6 +45,8 @@ pub fn read_filesapp_state() -> Result<FilesApp, std::io::Error> {
 
 pub fn save_filesapp_state(app: &mut FilesApp) {
     let mut config_path = get_home_dir();
+    config_path.push(".config");
+    config_path.push("scout");
     match fs::metadata(config_path.clone()) {
         Ok(_) => (),
         Err(_) => match fs::create_dir(config_path.clone()) {
@@ -52,6 +60,7 @@ pub fn save_filesapp_state(app: &mut FilesApp) {
     config_path.push(CONFIG_NAME);
 
     let json_data = json!({
+    "seperator": app.seperator,
     "selected_element_index": 0,
     "selected_element": ItemElement{
         name: "".to_string(),
