@@ -23,7 +23,7 @@ use scout_utils::{
         handle_key_action, handle_key_creation, handle_key_delete, handle_key_editing,
         handle_key_search,
     },
-    utils::read_filesapp_state,
+    utils::{read_filesapp_state, save_filesapp_state},
 };
 use types::{FilesApp, ItemElement, Modes};
 
@@ -57,7 +57,7 @@ impl App for FilesApp {
                 Modes::Search => mode_display = "Search",
                 Modes::Renaming => mode_display = "Renaming",
                 Modes::Deletion => mode_display = "Deletion",
-                Modes::NonAction => mode_display = "Settings",
+                _ =>  mode_display = "Action",
             }
 
             // Key events
@@ -113,6 +113,9 @@ impl App for FilesApp {
                     }
                 })
         });
+        ctx.input(|i| if i.viewport().close_requested(){
+            save_filesapp_state(self)
+        })
     }
 }
 

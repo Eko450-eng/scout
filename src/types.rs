@@ -33,6 +33,7 @@ pub enum Modes {
     Renaming,
     Deletion,
     NonAction,
+    Help,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]

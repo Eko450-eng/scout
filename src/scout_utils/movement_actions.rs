@@ -16,65 +16,67 @@ fn is_folder_empty(folder_path: &PathBuf) -> Result<bool, std::io::Error> {
 }
 
 pub fn move_in(app: &mut FilesApp) {
-    let item = app.files[app.selected_element_index].clone();
+    if !app.empty {
+        let item = app.files[app.selected_element_index].clone();
 
-    let mut image_ext_osstring: Vec<OsString> = vec![];
-    for i in app.image_formats.clone() {
-        image_ext_osstring.push(OsString::from(i))
-    }
+        let mut image_ext_osstring: Vec<OsString> = vec![];
+        for i in app.image_formats.clone() {
+            image_ext_osstring.push(OsString::from(i))
+        }
 
-    if item.path.is_dir() {
-        match is_folder_empty(&item.path) {
-            Ok(empty) => {
-                if empty {
-                    app.empty = true;
-                    let mut currentpath = app.selected_element.path.clone();
-                    currentpath.pop();
-                    app.last_path = currentpath;
-                    app.history.push(item.clone().path);
-                    app.files = get_root_dir_files(
-                        item.clone().path,
-                        app.hide_hidden_files,
-                        app.search_string.clone(),
-                    );
+        if item.path.is_dir() {
+            match is_folder_empty(&item.path) {
+                Ok(empty) => {
+                    if empty {
+                        app.empty = true;
+                        let mut currentpath = app.selected_element.path.clone();
+                        currentpath.pop();
+                        app.last_path = currentpath;
+                        app.history.push(item.clone().path);
+                        app.files = get_root_dir_files(
+                            item.clone().path,
+                            app.hide_hidden_files,
+                            app.search_string.clone(),
+                        );
 
-                    app.current_path = item.clone().path;
+                        app.current_path = item.clone().path;
 
-                    reset_search(app);
+                        reset_search(app);
 
-                    app.selected_element_index = 0;
-                } else {
-                    let mut currentpath = app.selected_element.path.clone();
-                    currentpath.pop();
-                    app.last_path = currentpath;
-                    app.history.push(item.clone().path);
-                    app.files = get_root_dir_files(
-                        item.clone().path,
-                        app.hide_hidden_files,
-                        app.search_string.clone(),
-                    );
+                        app.selected_element_index = 0;
+                    } else {
+                        let mut currentpath = app.selected_element.path.clone();
+                        currentpath.pop();
+                        app.last_path = currentpath;
+                        app.history.push(item.clone().path);
+                        app.files = get_root_dir_files(
+                            item.clone().path,
+                            app.hide_hidden_files,
+                            app.search_string.clone(),
+                        );
 
-                    app.current_path = item.clone().path;
+                        app.current_path = item.clone().path;
 
-                    reset_search(app);
+                        reset_search(app);
 
-                    app.selected_element_index = 0;
-                    app.selected_element = app.files[app.selected_element_index].clone();
+                        app.selected_element_index = 0;
+                        app.selected_element = app.files[app.selected_element_index].clone();
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            app.selected_element = app.files[app.selected_element_index].clone();
+            if item.path.extension().is_some() {
+                let ext = item.path.extension().unwrap();
+
+                if image_ext_osstring.contains(&ext.to_os_string()) {
+                    app.content = get_content(app.files[app.selected_element_index].clone().path);
                 }
             }
-            _ => {}
         }
-    } else {
-        app.selected_element = app.files[app.selected_element_index].clone();
-        if item.path.extension().is_some() {
-            let ext = item.path.extension().unwrap();
-
-            if image_ext_osstring.contains(&ext.to_os_string()) {
-                app.content = get_content(app.files[app.selected_element_index].clone().path);
-            }
-        }
+        app.search_string = "".to_string();
     }
-    app.search_string = "".to_string();
 }
 
 pub fn move_out(app: &mut FilesApp) {
@@ -120,7 +122,7 @@ pub fn move_forward(app: &mut FilesApp) {
 }
 
 pub fn move_up(app: &mut FilesApp) {
-    if !app.empty {
+    if !app.empty && app.selected_element_index > 0 {
         app.selected_element_index = app.selected_element_index - 1;
         app.selected_element = app.files[app.selected_element_index].clone();
         if app.preview {
@@ -130,7 +132,7 @@ pub fn move_up(app: &mut FilesApp) {
 }
 
 pub fn move_down(app: &mut FilesApp) {
-    if !app.empty {
+    if !app.empty && app.selected_element_index < app.files.len() - 1 {
         app.selected_element_index = app.selected_element_index + 1;
         app.selected_element = app.files[app.selected_element_index].clone();
         if app.preview {
